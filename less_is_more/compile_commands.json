@@ -1,0 +1,18 @@
+[
+  {
+    "arguments": [
+      "/usr/bin/gcc",
+      "-c",
+      "-Wall",
+      "-Wextra",
+      "-Wpedantic",
+      "-I./libdeflate/",
+      "-o",
+      "main",
+      "main.c"
+    ],
+    "directory": "/home/tanz/Documents/dev/projects/less_is_more",
+    "file": "/home/tanz/Documents/dev/projects/less_is_more/main.c",
+    "output": "/home/tanz/Documents/dev/projects/less_is_more/main"
+  }
+]
