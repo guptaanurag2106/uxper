@@ -6,3 +6,4 @@ Implementing Text Classification
 - Run: `make && ./main ./AG_Dataset/train.csv AG_Dataset/test.csv`
 
 Accuracy over the first 50 elements in AG_Dataset/test.csv: 79.59%
+Using KNN with k from 5-20 doesnt have much change with accuracy around 85%!!

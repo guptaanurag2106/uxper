@@ -1,6 +1,6 @@
 CC = gcc
 CFLAGS = -Wall -Wextra -Wpedantic -I./libdeflate/
-LDFLAGS = -L./libdeflate/build/ -ldeflate
+LDFLAGS = -L./libdeflate/build/ -ldeflate  -Wl,-rpath=./libdeflate/build
 SRC = main.c
 INCLUDES = utils.h
 TARGET = main

@@ -11,8 +11,24 @@
       "main",
       "main.c"
     ],
-    "directory": "/home/tanz/Documents/dev/projects/less_is_more",
-    "file": "/home/tanz/Documents/dev/projects/less_is_more/main.c",
-    "output": "/home/tanz/Documents/dev/projects/less_is_more/main"
+    "directory": "/home/tanz/Documents/dev/projects/papers/less_is_more",
+    "file": "/home/tanz/Documents/dev/projects/papers/less_is_more/main.c",
+    "output": "/home/tanz/Documents/dev/projects/papers/less_is_more/main"
+  },
+  {
+    "arguments": [
+      "/usr/bin/gcc",
+      "-c",
+      "-Wall",
+      "-Wextra",
+      "-Wpedantic",
+      "-I./libdeflate/",
+      "-o",
+      "main",
+      "utils.h"
+    ],
+    "directory": "/home/tanz/Documents/dev/projects/papers/less_is_more",
+    "file": "/home/tanz/Documents/dev/projects/papers/less_is_more/utils.h",
+    "output": "/home/tanz/Documents/dev/projects/papers/less_is_more/main"
   }
 ]
