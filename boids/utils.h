@@ -3,6 +3,7 @@
 
 #include <ctype.h>
 #include <errno.h>
+#include <math.h>
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -52,7 +53,7 @@ static inline int Log_set_out_file(const char *out_file) {
     return 0;
 }
 
-static void Log(enum Log_Level level, const char *message);
+void Log(enum Log_Level level, const char *message);
 // ----------------------------------------------------------------------------
 //  General Utils
 // ----------------------------------------------------------------------------
@@ -133,11 +134,22 @@ typedef struct Vector3 {
     float x, y, z;
 } Vector3;
 
-static inline uint32_t clamp_u32(uint32_t v, uint32_t lo, uint32_t hi) {
-    if (v < lo) return lo;
-    if (v > hi) return hi;
-    return v;
+static inline float lerp_float(float start, float end, float t) {
+    return start + t * (end - start);
 }
+
+#define CLAMP_TYPE(type)                                        \
+    static inline type clamp_##type(type v, type lo, type hi) { \
+        const type _v = (v);                                    \
+        const type _lo = (lo);                                  \
+        const type _hi = (hi);                                  \
+        if (_v < _lo) return _lo;                               \
+        if (_v > _hi) return _hi;                               \
+        return _v;                                              \
+    }
+
+CLAMP_TYPE(int)
+CLAMP_TYPE(float)
 
 static inline bool is_number(const char *s) {
     if (s == NULL || *s == '\0') return false;
@@ -145,13 +157,45 @@ static inline bool is_number(const char *s) {
     if (*s == '-') s++;
     if (*s == '\0') return false;
     while (*s) {
-        if (!isdigit((unsigned char)*s)) return false;
+        if (*s < '0' || *s > '9') return false;
         s++;
     }
     return true;
 }
 
+// warn: no modulus: wrap when just went beyond boundary
+#define WRAP_TYPE(type)                                              \
+    static inline type wrap_##type(type value, type min, type max) { \
+        const type _v = (value);                                     \
+        const type _min = (min);                                     \
+        const type _max = (max);                                     \
+        if (_max <= _min) return _v;                                 \
+        if (_v < _min) return _v + (_max - _min);                    \
+        if (_v > _max) return _v - (_max - _min);                    \
+        return _v;                                                   \
+    }
+
+WRAP_TYPE(int)
+WRAP_TYPE(float)
+WRAP_TYPE(double)
+
 int calculate_infix(const char *expr);  // 34+5*10+3 -> 88 just +-*/%
+
+static inline float triangle_area_float(float x1, float y1, float x2, float y2,
+                                        float x3, float y3) {
+    return fabs((x1 * (y2 - y3) + x2 * (y3 - y1) + x3 * (y1 - y2)) / 2.0);
+}
+
+static inline bool triangle_is_inside(float x1, float y1, float x2, float y2,
+                                      float x3, float y3, float x, float y) {
+    float A = triangle_area_float(x1, y1, x2, y2, x3, y3);
+    float A1 = triangle_area_float(x, y, x2, y2, x3, y3);
+    float A2 = triangle_area_float(x1, y1, x, y, x3, y3);
+    float A3 = triangle_area_float(x1, y1, x2, y2, x, y);
+
+    // Check if sum of A1, A2 and A3 is same as A
+    return (A == A1 + A2 + A3);
+}
 
 // ----------------------------------------------------------------------------
 //  String Utils
@@ -196,7 +240,7 @@ void reset_Ivector(Ivector *vector);
 
 #ifdef UTILS_IMPLEMENTATION
 
-static void Log(enum Log_Level level, const char *message) {
+void Log(enum Log_Level level, const char *message) {
     if (level < _base_log_level) return;
     FILE *out = stdout;
     if (level >= Log_Warn) out = stderr;
