@@ -1,5 +1,6 @@
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_events.h>
+#include <SDL2/SDL_keycode.h>
 #include <SDL2/SDL_pixels.h>
 #include <SDL2/SDL_render.h>
 #include <SDL2/SDL_timer.h>
@@ -40,6 +41,7 @@
 
 typedef struct {
     bool quit;
+    bool pause;
 
     SDL_Window *window;
     SDL_Renderer *renderer;
@@ -88,10 +90,12 @@ bool app_init(AppState *app) {
     app->fps_avg_samples = FPS_AVG_SAMPLES;
     app->fps_count = 0;
     app->quit = false;
+    app->pause = false;
 
     app->boid_count = BOID_COUNT;
     Log(Log_Info, temp_sprintf("Spawning %d boids", app->boid_count));
-    app->boids = (Boid *)malloc(app->boid_count * sizeof(Boid));
+    // app->boids = (Boid *)malloc(app->boid_count * sizeof(*app->boids));
+    app->boids = aligned_alloc(64, app->boid_count * sizeof(*app->boids));
     if (app->boids == NULL) {
         Log(Log_Error, "Could not allocate Boids");
         return false;
@@ -125,10 +129,10 @@ void app_destroy(AppState *app) {
 
 static inline void update_boids(AppState *app, float dt) {
     dt /= 1000;  // ms->s;
-    for (size_t i = 0; i < app->boid_count; i++) {
+// #pragma omp parallel for schedule(static)
+    for (size_t i = 0; i < app->boid_count; i++)
         update_boid(app->boids, i, app->boid_count, SCREEN_WIDTH, SCREEN_HEIGHT,
                     dt);
-    }
 }
 
 static inline void render(AppState *app) {
@@ -158,10 +162,12 @@ void app_run(AppState *app) {
                 case SDL_QUIT:
                     app->quit = true;
                     return;
+                case SDL_KEYDOWN:
+                    if (e.key.keysym.sym == SDLK_p) app->pause = !app->pause;
             }
         }
 
-        update_boids(app, frame_time);
+        if (!app->pause) update_boids(app, frame_time);
         render(app);
 
         SDL_UpdateTexture(app->texture, NULL, app->pixels, SCREEN_WIDTH * 4);
