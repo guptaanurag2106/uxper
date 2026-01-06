@@ -1,0 +1,32 @@
+0! 0! 0! 0! 0! 0! 0! 0! 0! 0!
+0! 0! 0! 0! 0! 0! 0! 0! 0! 0!
+0! 0! 0! 0! 0! 0! 0! 0! 0! 1!
+32! # No of steps +2
+
+
+inf: 1! sub! dup! 2! lt! end! jmpif!        #check number of iterations (40 here)
+    trace
+
+    !dup !move
+    !1 !shl !over !or
+    loop:        
+       110!
+       !move 
+       !over !1 !gt !out !jmpif             #loop over all elements until you encounter > 1 (the iterator count)
+       1! shl!
+       !over !move or! shr! 1! and!
+       !1 !shl !over !or
+        
+
+    !loop !jmp
+
+    out:
+    drop!  #clear random values (2x+y)
+    drop!  #clear random values (110)
+    !move  #move last value to end
+    !move                                   #move counter to end
+
+!inf !jmp
+
+end: !0 !exit                               #exit with code 0
+
