@@ -1,0 +1,9 @@
+conway
+lenia
+smooth_life
+rule110
+wireworld
+viz
+compile_commands.json
+*.o
+.cache/
