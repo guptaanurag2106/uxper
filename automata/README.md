@@ -1,13 +1,26 @@
-# Cellular Automaton with a Raylib based visualizer
+# Automata
 
-https://en.wikipedia.org/wiki/Boids
+Implementing various cellular automata algorithms including Conway's Game of Life, Wireworld, and Rule 110 using Raylib for visualization.
 
-- [Rule 110](https://en.wikipedia.org/wiki/Rule_110)
-- [Conway](https://en.wikipedia.org/wiki/Conway%27s_Game_of_Life)
-- [Smooth Life](https://arxiv.org/abs/1111.1567)
+## Context
+- [Conway's Game of Life](https://en.wikipedia.org/wiki/Conway%27s_Game_of_Life)
 - [Wireworld](https://en.wikipedia.org/wiki/Wireworld)
+- [Rule 110](https://en.wikipedia.org/wiki/Rule_110)
+- [Smooth Life](https://arxiv.org/abs/1111.1567)
 
-## Visualizer
-
+## Visuals
 ![Wireworld](./wireworld.gif)
 ![Conway](./conway.gif)
+
+## Build & Run
+
+```bash
+# Build all visualizations
+make
+
+# Run specific visualization
+./conway
+./wireworld
+./rule110
+./smooth_life
+```
