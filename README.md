@@ -8,3 +8,5 @@
 - [Cellular Automaton](https://en.wikipedia.org/wiki/Cellular_automaton)
 - [Bash](https://www.gnu.org/software/bash/)
 - [Bresenham's line algorithm](https://en.wikipedia.org/wiki/Bresenham%27s_line_algorithm)
+- [Skip Lists](https://en.wikipedia.org/wiki/Skip_list)
+- [XTEA](https://en.wikipedia.org/wiki/XTEA)
