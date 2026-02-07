@@ -4,23 +4,8 @@
 #include <stdio.h>
 #include <string.h>
 
-void usage(const char *prog_name) {
-    printf(
-        "Usage: %s --encrypt/--decrypt -k <keyfile> -i <inputfile> [-o "
-        "<outputfile>]\n\n",
-        prog_name);
-    printf("Options: \n");
-    printf("Required Arguments: \n");
-    printf(
-        "  --encrypt          To encrypt <inputfile> with <keyfile> "
-        "(default)\n");
-    printf("  --decrypt          To decrypt <inputfile> with <keyfile>\n");
-    printf("  -k <keyfile>       Path to key file (required)\n");
-    printf("  -i <inputfile>     Input file (required)\n\n");
-    printf("Optional Arguments: \n");
-    printf("  -o <outputfile>    Output file (optional; default: stdout)\n");
-    printf("  -h, --help         Show this help message and exit\n\n");
-}
+#define FLAG_IMPLEMENTATION
+#include "../utils/flag.h"
 
 bool encrypt(uint32_t rounds, FILE *in, FILE *key, FILE *out) {
     uint32_t in_buf[2] = {0};
@@ -80,53 +65,22 @@ bool decrypt(uint32_t rounds, FILE *in, FILE *key, FILE *out) {
 }
 
 int main(int argc, char **argv) {
-    const char *prog_name = argv[0];
+    bool *encrypt_mode = flag_bool("encrypt", false, "To encrypt <inputfile> with <keyfile> (default)");
+    bool *decrypt_mode = flag_bool("decrypt", false, "To decrypt <inputfile> with <keyfile>");
+    char **key_file_ptr = flag_string("key", "", "Path to key file", .required = true, .single_char = 'k');
+    char **input_file_ptr = flag_string("input", "", "Input file", .required = true, .single_char = 'i');
+    char **output_file_ptr = flag_string("output", "", "Output file (optional; default: stdout)", .single_char = 'o');
 
-    if (argc == 1) {
-        fprintf(stderr, "No flags found, run %s -h to see all options\n",
-                prog_name);
-        return 1;
-    }
+    flag_parse(argc, argv, "XTEA Cipher implementation");
 
-    bool to_encrypt = true;  // true for encrypt false for decrypt
-    char *key_file = "";
-    char *input_file = "";
-    char *output_file = NULL;
+    bool to_encrypt = true;
+    if (*decrypt_mode) to_encrypt = false;
+    (void)encrypt_mode; // Suppress unused warning
+
     const uint32_t rounds = 2;
-
-    for (int i = 1; i < argc; i++) {
-        const char *arg = argv[i];
-        if (strcmp(arg, "-h") == 0 || strcmp(arg, "--help") == 0) {
-            usage(prog_name);
-            return 0;
-        }
-        if (strcmp(arg, "--encrypt") == 0) {
-            to_encrypt = true;
-        } else if (strcmp(arg, "--decrypt") == 0) {
-            to_encrypt = false;
-        } else if (strcmp(arg, "-k") == 0) {
-            if (i == (argc - 1)) {
-                fprintf(stderr, "Expected <keyfile>, found nothing\n");
-                return 1;
-            }
-            key_file = argv[++i];
-        } else if (strcmp(arg, "-i") == 0) {
-            if (i == (argc - 1)) {
-                fprintf(stderr, "Expected <inputfile>, found nothing\n");
-                return 1;
-            }
-            input_file = argv[++i];
-        } else if (strcmp(arg, "-o") == 0) {
-            if (i == (argc - 1)) {
-                fprintf(stderr, "Expected <outputfile>, found nothing\n");
-                return 1;
-            }
-            output_file = argv[++i];
-        } else {
-            fprintf(stderr, "Unknown flag %s\n", arg);
-            return 1;
-        }
-    }
+    char *key_file = *key_file_ptr;
+    char *input_file = *input_file_ptr;
+    char *output_file = (*output_file_ptr && **output_file_ptr) ? *output_file_ptr : NULL;
 
     FILE *in = fopen(input_file, "rb");
     if (in == NULL) {
