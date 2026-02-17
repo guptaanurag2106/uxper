@@ -11,6 +11,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #ifndef FLAG_DEF
 #define FLAG_DEF inline static
 #endif
@@ -84,6 +88,11 @@ FLAG_DEF int flag_get_rem_argc();
 
 // get remaining argv after parsing (after --);
 FLAG_DEF char **flag_get_rem_argv();
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+#endif  // FLAG_H_
 
 #ifdef FLAG_IMPLEMENTATION
 
@@ -513,4 +522,3 @@ FLAG_DEF int flag_get_rem_argc() { return flag__argc; }
 FLAG_DEF char **flag_get_rem_argv() { return flag__argv; }
 
 #endif
-#endif  // FLAG_H_

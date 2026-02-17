@@ -1,5 +1,5 @@
-#ifndef HTB_H
-#define HTB_H
+#ifndef HTB_H_
+#define HTB_H_
 
 #include <errno.h>
 #include <math.h>
@@ -28,6 +28,8 @@ bool ht_insert(ht_table *ht, const char *key, const char *value);
 char *ht_get(ht_table *ht, const char *key);
 bool ht_set(ht_table *ht, const char *key, const char *value);
 void ht_delete(ht_table *ht, const char *key);
+
+#endif // ifndef HTB_H_
 
 #ifndef HASH_TABLE_IMPLEMENTATION
 
@@ -235,5 +237,3 @@ void ht_delete(ht_table *ht, const char *key) {
 }
 
 #endif
-
-#endif /* ifndef HTB_H */
