@@ -10,4 +10,4 @@
 - **Bresenham**: Implementing line drawing algorithms in C using SDL2 - [Bresenham](https://en.wikipedia.org/wiki/Bresenham%27s_line_algorithm), [Gupta and Sproull](https://en.wikipedia.org/wiki/Line_drawing_algorithm)
 - **Probabilistic Data Structures**: Implementing various probabilistic data structures like [Skip Lists](https://en.wikipedia.org/wiki/Skip_list), [Bloom Filters](https://en.wikipedia.org/wiki/Bloom_filter), and [Count–min Sketches](https://en.wikipedia.org/wiki/Count%E2%80%93min_sketch).
 - **XTEA**: Implementing the XTEA block cipher and basic XOR encryption - [XTEA](https://en.wikipedia.org/wiki/XTEA), [XOR Cipher](https://en.wikipedia.org/wiki/XOR_cipher)
-- **Arena Allocator**: Implementing Arena allocator - [Wikipedia](https://en.wikipedia.org/wiki/Region-based_memory_management)
+- **Allocators**: Implementing Arena, Pool allocator - [Wikipedia](https://en.wikipedia.org/wiki/Region-based_memory_management)
