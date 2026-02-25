@@ -11,3 +11,4 @@
 - **Probabilistic Data Structures**: Implementing various probabilistic data structures like [Skip Lists](https://en.wikipedia.org/wiki/Skip_list), [Bloom Filters](https://en.wikipedia.org/wiki/Bloom_filter), and [Count–min Sketches](https://en.wikipedia.org/wiki/Count%E2%80%93min_sketch).
 - **XTEA**: Implementing the XTEA block cipher and basic XOR encryption - [XTEA](https://en.wikipedia.org/wiki/XTEA), [XOR Cipher](https://en.wikipedia.org/wiki/XOR_cipher)
 - **Allocators**: Implementing Arena, Pool allocator - [Wikipedia](https://en.wikipedia.org/wiki/Region-based_memory_management)
+- **Markov Chains**: Implementing Markov chains - [Wikipedia](https://en.wikipedia.org/wiki/Markov_chain)
