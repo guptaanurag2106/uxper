@@ -12,3 +12,4 @@
 - **XTEA**: Implementing the XTEA block cipher and basic XOR encryption - [XTEA](https://en.wikipedia.org/wiki/XTEA), [XOR Cipher](https://en.wikipedia.org/wiki/XOR_cipher)
 - **Allocators**: Implementing Arena, Pool allocator - [Wikipedia](https://en.wikipedia.org/wiki/Region-based_memory_management)
 - **Markov Chains**: Implementing Markov chains - [Wikipedia](https://en.wikipedia.org/wiki/Markov_chain)
+- **Mark and Sweep Garbage Collection**: Implementing, experimenting a basic GC - [Mark and Sweep](https://www.cs.odu.edu/~zeil/cs330/f13/Public/garbageCollection/garbageCollection-htmlsu5.html)

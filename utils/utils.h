@@ -104,13 +104,13 @@ UTILS_DEF void Log(enum Log_Level level, const char *format, ...);
     do {                                                                  \
         fprintf(stderr, "[UNREACHABLE]: %s:%d \n" #__VA_ARGS__, __FILE__, \
                 __LINE__);                                                \
-        exit(1);                                                          \
+        abort();                                                          \
     } while (0)
 
 #define TODO(...)                                                             \
     do {                                                                      \
         fprintf(stderr, "[TODO]: %s:%d \n" #__VA_ARGS__, __FILE__, __LINE__); \
-        exit(1);                                                              \
+        abort();                                                              \
     } while (0)
 
 #define UNUSED(x) (void)(x)
@@ -121,16 +121,14 @@ static inline char *shift(int *argc, char ***argv) {
     return *((*argv)++);
 }
 
-UTILS_DEF char *generate_uuid();
+UTILS_DEF char *generate_uuid(void);
 
-static inline void timersub(const struct timeval *a, const struct timeval *b,
-                            struct timeval *result) {
-    result->tv_sec = a->tv_sec - b->tv_sec;
-    result->tv_usec = a->tv_usec - b->tv_usec;
-    if (result->tv_usec < 0) {
-        result->tv_sec--;
-        result->tv_usec += 1000000;
-    }
+static inline double timersub_ms(const struct timeval *end,
+                                 const struct timeval *start) {
+    double res = 0.0;
+    res += (end->tv_sec - start->tv_sec) * 1000.0;
+    res += (end->tv_usec - start->tv_usec) * 0.001;
+    return res;
 }
 
 // ----------------------------------------------------------------------------
@@ -198,7 +196,7 @@ typedef struct RNG {
     uint32_t state;
 } RNG;
 
-static RNG rng_state = (RNG){0x12345678u};
+static RNG rng_state = {0x12345678u};
 
 static inline void rng_seed(RNG *rng, uint32_t seed) {
     rng->state = seed ? seed : 0x12345678u;
@@ -305,6 +303,10 @@ UTILS_DEF bool triangle_is_inside(float x1, float y1, float x2, float y2,
         }                                                \
         i;                                               \
     })
+
+#define vec_foreach(v, it)                                                    \
+    for (__typeof__((v)->items) it = (v)->items; it < (v)->items + (v)->size; \
+         it++)
 
 #define vec_clear(v) ((v)->size = 0)
 
