@@ -4,8 +4,8 @@ CXX  = g++
 CFLAGS   = -Werror -Wextra -g -std=c99
 CXXFLAGS = -Werror -Wextra -g -std=c++17
 
-RAYLIB_INC = -I./raylib-5.5_linux_amd64/include
-RAYLIB_LIB = -L./raylib-5.5_linux_amd64/lib -l:libraylib.a \
+RAYLIB_INC = -I../utils/raylib-5.5_linux_amd64/include
+RAYLIB_LIB = -L../utils/raylib-5.5_linux_amd64/lib -l:libraylib.a \
              -lm -lpthread -ldl -lrt -lX11
 
 C_BINS   = rule110 wireworld conway
