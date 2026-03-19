@@ -1,4 +1,4 @@
-# [Markov chains]
+# Markov chains
 
 ## Context
 - [Markov chains](https://en.wikipedia.org/wiki/Markov_chain)
