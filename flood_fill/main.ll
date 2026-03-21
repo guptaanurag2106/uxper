@@ -7,7 +7,7 @@ target triple = "x86_64-pc-linux-gnu"
 @height = constant i32 600
 @gridS = constant i32 10
 
-%struct.Vector2 = type { float, float }
+@fill_colour = constant i32 u0xFF00FFFF
 
 define ptr @grid_ptr_at(ptr %grid, i32 %gc, i32 %x, i32 %y) {
   %row = mul nsw i32 %y, %gc
@@ -28,13 +28,17 @@ define void @floodfill_helper(ptr %grid, i32 %gc, i32 %gr, i32 %gridX, i32 %grid
   br i1 %out_bounds, label %ret, label %continue
 
 continue:
+  %vfill_colour = load i32, ptr @fill_colour
+
   %colourptr = call ptr @grid_ptr_at(ptr %grid, i32 %gc, i32 %gridX, i32 %gridY)
   %colour = load i32, ptr %colourptr
-  %uneq = icmp ne i32 %colour, %colour_old
+  %uneq1 = icmp ne i32 %colour, %colour_old
+  %uneq2 = icmp eq i32 %colour, %vfill_colour
+  %uneq = or i1 %uneq1, %uneq2
   br i1 %uneq, label %ret, label %continue2
 
 continue2:
-  store i32 u0xFF00FFFF, ptr %colourptr
+  store i32 %vfill_colour, ptr %colourptr
   %x1 = add i32 1, %gridX
   %xn1 = add i32 -1, %gridX
   %y1 = add i32 1, %gridY
@@ -122,7 +126,14 @@ continue:
 ;; mouse pressed
   %left = call i1 @IsMouseButtonDown(i32 0)
   %right = call i1 @IsMouseButtonReleased(i32 1)
+  %space = call i1 @IsKeyPressed(i32 32);
+  br i1 %space, label %clear, label %continue3
 
+clear:
+  call void @llvm.memset.p0.i64(ptr align 4 %grid, i8 0, i64 %bytes64, i1 false)
+  br label %loop_end
+
+continue3:
   %mousePosV = call <2 x float> @GetMousePosition()
   %mx_f = extractelement <2 x float> %mousePosV, i32 0
   %my_f = extractelement <2 x float> %mousePosV, i32 1
@@ -175,6 +186,7 @@ declare void @SetTargetFPS(i32)
 declare void @DrawRectangle(i32, i32, i32, i32, i32)
 declare i1 @IsMouseButtonDown(i32)
 declare i1 @IsMouseButtonReleased(i32)
+declare i1 @IsKeyPressed(i32);
 declare <2 x float> @GetMousePosition()
 declare void @EndDrawing()
 declare void @CloseWindow()
