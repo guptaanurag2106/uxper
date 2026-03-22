@@ -214,13 +214,13 @@ static inline uint32_t rng_u32(RNG *rng) {
     return x;
 }
 
-static inline uint32_t rng_u32_tls() { return rng_u32(&rng_state); }
+static inline uint32_t rng_u32_tls(void) { return rng_u32(&rng_state); }
 
 static inline float rng_f32(RNG *rng) {
     return (rng_u32(rng) >> 8) * (1.0f / 16777216.0f);
 }
 
-static inline float rng_f32_tls() { return rng_f32(&rng_state); }
+static inline float rng_f32_tls(void) { return rng_f32(&rng_state); }
 
 static inline float rngf_range(RNG *rng, float min, float max) {
     return min + (max - min) * rng_f32(rng);
@@ -337,9 +337,6 @@ UTILS_DEF char *combine_charp(const char *str1, const char *str2);
 // Will use the utils_static_temp_buffer and reset it everytime its filled
 #define COMBINE(separator, ...) \
     combine_strings_with_sep_(separator, __VA_ARGS__, NULL)
-// Will use the utils_static_temp_buffer and reset it everytime its filled,
-// last va_arg should be NULL
-UTILS_DEF char *combine_strings_with_sep_(const char *separator, ...);
 // Will use the utils_static_temp_buffer and reset it everytime its filled
 UTILS_DEF char *temp_sprintf(const char *format, ...);
 
@@ -414,7 +411,7 @@ UTILS_DEF void Log(enum Log_Level level, const char *format, ...) {
     fprintf(out, "\n");
 }
 
-UTILS_DEF char *generate_uuid() {
+UTILS_DEF char *generate_uuid(void) {
     char v[] = {'0', '1', '2', '3', '4', '5', '6', '7',
                 '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'};
     char *buf = (char *)malloc(sizeof(char) * (37));
@@ -564,6 +561,8 @@ UTILS_DEF char *combine_charp(const char *str1, const char *str2) {
     return temp_sprintf("%s%s", str1, str2);
 }
 
+// Will use the utils_static_temp_buffer and reset it everytime its filled,
+// last va_arg should be NULL
 UTILS_DEF char *combine_strings_with_sep_(const char *separator, ...) {
     va_list args;
 
@@ -600,7 +599,6 @@ UTILS_DEF char *combine_strings_with_sep_(const char *separator, ...) {
 
     va_start(args, separator);
     s = va_arg(args, const char *);
-    int i = 0;
     while (s != NULL) {
         size_t len = strlen(s);
         memcpy(current, s, len);
@@ -612,7 +610,6 @@ UTILS_DEF char *combine_strings_with_sep_(const char *separator, ...) {
             memcpy(current, separator, sep_len);
             current += sep_len;
         }
-        i++;
     }
     va_end(args);
 
