@@ -15,3 +15,4 @@
 - **Mark and Sweep Garbage Collection**: Implementing, experimenting a basic GC - [Mark and Sweep](https://www.cs.odu.edu/~zeil/cs330/f13/Public/garbageCollection/garbageCollection-htmlsu5.html)
 - **Flood Fill**: Implementing flood fill algorithm in LLVM IR - [Wikipedia](https://en.wikipedia.org/wiki/Flood_fill), [LLVM Language Reference](https://llvm.org/docs/LangRef.html)
 - **BF Compiler**: Brainfuck Compiler in LLVM - [Wikipedia](https://en.wikipedia.org/wiki/Brainfuck), [LLVM](https://llvm.org/docs/)
+- **OpenMP**: Learning OpenMP - [Introduction to OpenMP - Youtube](https://www.youtube.com/playlist?list=PLLX-Q6B8xqZ8n8bwjGdzBJ25X2utwnoEG)
