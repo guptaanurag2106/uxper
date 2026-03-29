@@ -8,7 +8,6 @@
 - **Cellular Automaton**: Visualizing various cellular automata like Game of Life and Wireworld using Raylib - [Wikipedia](https://en.wikipedia.org/wiki/Cellular_automaton), [Wireworld](https://en.wikipedia.org/wiki/Wireworld), [Smooth Life](https://arxiv.org/abs/1111.1567)
 - **Bash**: Learning shell scripting and exploring GNU Coreutils functionality - [Bash](https://www.gnu.org/software/bash/), [Coreutils](https://www.gnu.org/software/coreutils/)
 - **Bresenham**: Implementing line drawing algorithms in C using SDL2 - [Bresenham](https://en.wikipedia.org/wiki/Bresenham%27s_line_algorithm), [Gupta and Sproull](https://en.wikipedia.org/wiki/Line_drawing_algorithm)
-- **Probabilistic Data Structures**: Implementing various probabilistic data structures like [Skip Lists](https://en.wikipedia.org/wiki/Skip_list), [Bloom Filters](https://en.wikipedia.org/wiki/Bloom_filter), and [Count–min Sketches](https://en.wikipedia.org/wiki/Count%E2%80%93min_sketch).
 - **XTEA**: Implementing the XTEA block cipher and basic XOR encryption - [XTEA](https://en.wikipedia.org/wiki/XTEA), [XOR Cipher](https://en.wikipedia.org/wiki/XOR_cipher)
 - **Allocators**: Implementing Arena, Pool allocator - [Wikipedia](https://en.wikipedia.org/wiki/Region-based_memory_management)
 - **Markov Chains**: Implementing Markov chains - [Wikipedia](https://en.wikipedia.org/wiki/Markov_chain)
@@ -16,3 +15,5 @@
 - **Flood Fill**: Implementing flood fill algorithm in LLVM IR - [Wikipedia](https://en.wikipedia.org/wiki/Flood_fill), [LLVM Language Reference](https://llvm.org/docs/LangRef.html)
 - **BF Compiler**: Brainfuck Compiler in LLVM - [Wikipedia](https://en.wikipedia.org/wiki/Brainfuck), [LLVM](https://llvm.org/docs/)
 - **OpenMP**: Learning OpenMP - [Introduction to OpenMP - Youtube](https://www.youtube.com/playlist?list=PLLX-Q6B8xqZ8n8bwjGdzBJ25X2utwnoEG)
+- **Bloom Filter**: Implementing Bloom Filter [Bloom Filter](https://en.wikipedia.org/wiki/Bloom_filter)
+- **Skip Lists**: Implementing skip lists [Skip Lists](https://en.wikipedia.org/wiki/Skip_list)
