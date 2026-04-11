@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"strings"
+	"sync"
 )
 
 type DNSQuery struct {
@@ -75,6 +76,7 @@ func constructRequest(query DNSQuery) (int, []byte) {
 
 type DNSAnswer struct {
 	IP      string
+	CNAME   string
 	Type    uint16
 	Class   uint16
 	TTL     uint32
@@ -87,7 +89,52 @@ type Response struct {
 	authoritative bool
 	truncated     bool
 	responseCode  uint8
+	hasAddress    bool
+	firstCNAME    string
 	answers       []DNSAnswer
+}
+
+func readDNSName(response []byte, start int) (string, int) {
+	idx := start
+	jumped := false
+	next := start
+	var b strings.Builder
+
+	for {
+		labelLen := response[idx]
+		if labelLen == 0 {
+			if !jumped {
+				next = idx + 1
+			}
+			break
+		}
+
+		if labelLen&0xc0 == 0xc0 {
+			pointer := int(binary.BigEndian.Uint16(response[idx:idx+2]) & 0x3fff)
+			if !jumped {
+				next = idx + 2
+			}
+			idx = pointer
+			jumped = true
+			continue
+		}
+
+		idx++
+		if b.Len() > 0 {
+			b.WriteByte('.')
+		}
+		b.Write(response[idx : idx+int(labelLen)])
+		idx += int(labelLen)
+		if !jumped {
+			next = idx
+		}
+	}
+
+	if b.Len() > 0 {
+		b.WriteByte('.')
+	}
+
+	return b.String(), next
 }
 
 func parseResponse(response []byte) Response {
@@ -101,7 +148,7 @@ func parseResponse(response []byte) Response {
 
 	flags := binary.BigEndian.Uint16(response[respIndex : respIndex+2])
 	parsedResponse.authoritative = (flags>>10)&0x1 == 1
-	parsedResponse.truncated = (flags>>9)&0x1 == 1
+	parsedResponse.truncated = (flags>>9)&0x1 == 1 // TODO: handle truncation
 	parsedResponse.responseCode = uint8(flags & 0x000f)
 	respIndex += 2
 
@@ -120,22 +167,13 @@ func parseResponse(response []byte) Response {
 	// questions
 	qDomains := []string{}
 	for range qCount {
-		var domainBuilder strings.Builder
-		for {
-			labelLen := response[respIndex]
-			respIndex++
-			if labelLen == 0 {
-				break
-			}
-			domainBuilder.Write(response[respIndex : respIndex+int(labelLen)])
-			domainBuilder.WriteByte('.')
-			respIndex += int(labelLen)
-		}
-		_ = binary.BigEndian.Uint16(response[respIndex : respIndex+2])
+		domain, next := readDNSName(response, respIndex)
+		respIndex = next
+		_ = binary.BigEndian.Uint16(response[respIndex : respIndex+2]) // type
 		respIndex += 2
-		_ = binary.BigEndian.Uint16(response[respIndex : respIndex+2])
+		_ = binary.BigEndian.Uint16(response[respIndex : respIndex+2]) // class
 		respIndex += 2
-		qDomains = append(qDomains, domainBuilder.String())
+		qDomains = append(qDomains, domain)
 	}
 
 	parsedResponse.domains = qDomains
@@ -144,8 +182,8 @@ func parseResponse(response []byte) Response {
 	responseAnswers := []DNSAnswer{}
 	for range ansCount {
 		answer := DNSAnswer{}
-		_ = binary.BigEndian.Uint16(response[respIndex : respIndex+2]) // name? 0xc00c
-		respIndex += 2
+		_, next := readDNSName(response, respIndex)
+		respIndex = next
 
 		answer.Type = binary.BigEndian.Uint16(response[respIndex : respIndex+2])
 		respIndex += 2
@@ -169,6 +207,25 @@ func parseResponse(response []byte) Response {
 				respIndex++
 			}
 			answer.IP = ipBuilder.String()
+			parsedResponse.hasAddress = true
+		} else if answer.Type == 28 && dataLen == 16 {
+			var ipBuilder strings.Builder
+			for i := range dataLen / 2 {
+				if i > 0 {
+					ipBuilder.WriteByte(':')
+				}
+				fmt.Fprintf(&ipBuilder, "%02x%02x", response[respIndex], response[respIndex+1])
+				respIndex += 2
+			}
+			answer.IP = ipBuilder.String()
+			parsedResponse.hasAddress = true
+		} else if answer.Type == 5 {
+			cname, cnameNext := readDNSName(response, respIndex)
+			respIndex = cnameNext
+			answer.CNAME = cname
+			if parsedResponse.firstCNAME == "" {
+				parsedResponse.firstCNAME = cname
+			}
 		} else {
 			respIndex += int(dataLen)
 		}
@@ -185,6 +242,8 @@ func qTypeName(t uint16) string {
 	switch t {
 	case 1:
 		return "A"
+	case 5:
+		return "CNAME"
 	case 28:
 		return "AAAA"
 	default:
@@ -221,7 +280,6 @@ func rcodeName(code uint8) string {
 }
 
 func printResponse(response Response) {
-	fmt.Println("Response:")
 	fmt.Printf("transaction_id: %d\n", response.transactionID)
 	fmt.Printf("domains: %v\n", response.domains)
 	fmt.Printf("flags: authoritative=%t truncated=%t rcode=%d(%s)\n",
@@ -237,13 +295,16 @@ func printResponse(response Response) {
 	}
 
 	for i, answer := range response.answers {
-		ip := answer.IP
-		if ip == "" {
-			ip = "-"
+		data := answer.IP
+		if answer.CNAME != "" {
+			data = answer.CNAME
 		}
-		fmt.Printf("  %d) ip=%s type=%d(%s) class=%d(%s) ttl=%dms data_len=%d\n",
+		if data == "" {
+			data = "-"
+		}
+		fmt.Printf("  %d) data=%s type=%d(%s) class=%d(%s) ttl=%dms data_len=%d\n",
 			i+1,
-			ip,
+			data,
 			answer.Type,
 			qTypeName(answer.Type),
 			answer.Class,
@@ -252,6 +313,85 @@ func printResponse(response Response) {
 			answer.DataLen,
 		)
 	}
+	fmt.Println()
+}
+
+func qTypeFromString(recordType string) uint16 {
+	switch strings.ToLower(recordType) {
+	case "a":
+		return 1
+	case "cname":
+		return 5
+	case "aaaa":
+		return 28
+	default:
+		fmt.Fprintf(os.Stderr, "Unsupported record type: %s\n", recordType)
+		os.Exit(1)
+		return 0
+	}
+}
+
+func getRecordRecursive(domain string, dns string, recordType string, depth int) Response {
+	if depth > 5 {
+		fmt.Fprintf(os.Stderr, "CNAME recursion limit reached for %s\n", domain)
+		os.Exit(1)
+	}
+
+	query := DNSQuery{Domain: domain, Type: qTypeFromString(recordType), Class: 1}
+	transactionID, msg := constructRequest(query)
+
+	conn, err := net.Dial("udp", dns+":53")
+	if err != nil {
+		panic(err)
+	}
+
+	n, err := conn.Write(msg)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error while writing %v\n", err.Error())
+		return Response{}
+	}
+	if n != len(msg) {
+		fmt.Fprintf(os.Stderr, "Wrote %d out of %d\n", n, len(msg))
+		return Response{}
+	}
+
+	response := make([]byte, 512)
+	_, err = conn.Read(response)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error while reading %v\n", err.Error())
+		return Response{}
+	}
+
+	parsedResponse := parseResponse(response)
+	if parsedResponse.domains[len(parsedResponse.domains)-1] != domain {
+		fmt.Fprintf(os.Stderr, "Requested for %s, got %s\n", domain, parsedResponse.domains)
+		return Response{}
+	}
+
+	if parsedResponse.transactionID != transactionID {
+		fmt.Fprintf(os.Stderr, "Requested with transaction ID: %d, got %d\n", transactionID, parsedResponse.transactionID)
+		return Response{}
+	}
+
+	if parsedResponse.hasAddress {
+		return parsedResponse
+	}
+
+	if !parsedResponse.hasAddress && parsedResponse.firstCNAME != "" {
+		fmt.Printf("No direct %s record for %s, found CNAME %s\n", strings.ToUpper(recordType), domain, parsedResponse.firstCNAME)
+		return getRecordRecursive(parsedResponse.firstCNAME, dns, recordType, depth+1)
+	}
+
+	if query.Type == 1 {
+		fmt.Fprintf(os.Stderr, "No A/CNAME record found for %s\n", domain)
+	} else {
+		fmt.Fprintf(os.Stderr, "No AAAA/CNAME record found for %s\n", domain)
+	}
+	return parsedResponse
+}
+
+func getRecord(domain string, dns string, recordType string) Response {
+	return getRecordRecursive(domain, dns, recordType, 0)
 }
 
 func main() {
@@ -263,13 +403,14 @@ func main() {
 		os.Exit(1)
 	}
 
-	// TODO: remove starting / and ending / (https://www.google.com -> www.google.com)
 	domain := os.Args[1]
+
 	dns := "1.1.1.1"
 	if len(os.Args) > 2 {
 		dns = os.Args[2]
 	}
 
+	// TODO: remove starting / and ending / (https://www.google.com -> www.google.com)
 	// u, err := url.Parse(domain)
 	// if err != nil {
 	// 	fmt.Printf("Could not parse url %s: %s\n", domain, err.Error())
@@ -280,57 +421,29 @@ func main() {
 	if domain[len(domain)-1] != '.' {
 		domain += "."
 	}
-
 	domain = strings.ToLower(domain)
 	if len(domain) >= 256 {
 		fmt.Printf("Domain name %s exceeds limit of 256 bytes\n", domain)
 		os.Exit(1)
 	}
 
-	fmt.Printf("Asking %s for A records of %s\n", dns, domain)
+	var parsedResponseA Response
+	var parsedResponseAAAA Response
+	var wg sync.WaitGroup
+	wg.Go(func() {
+		fmt.Printf("Asking %s for A records of %s\n", dns, domain)
+		parsedResponseA = getRecord(domain, dns, "A")
+	})
+	wg.Go(func() {
+		fmt.Printf("Asking %s for AAAA records of %s\n", dns, domain)
+		parsedResponseAAAA = getRecord(domain, dns, "AAAA")
+	})
 
-	query := DNSQuery{
-		Domain: domain,
-		Type:   1,
-		Class:  1,
-	}
+	wg.Wait()
 
-	transactionID, msg := constructRequest(query)
-
-	conn, err := net.Dial("udp", dns+":53")
-	if err != nil {
-		panic(err)
-	}
-
-	n, err := conn.Write(msg)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error while writing %v\n", err.Error())
-		os.Exit(1)
-	}
-
-	if n != len(msg) {
-		fmt.Fprintf(os.Stderr, "Wrote %d out of %d\n", n, len(msg))
-		os.Exit(1)
-	}
-
-	response := make([]byte, 512)
-	_, err = conn.Read(response)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error while reading %v\n", err.Error())
-		os.Exit(1)
-	}
-
-	// Msg Parse
-	parsedResponse := parseResponse(response)
-	if parsedResponse.domains[len(parsedResponse.domains)-1] != domain {
-		fmt.Fprintf(os.Stderr, "Requested for %s, got %s\n", domain, parsedResponse.domains)
-		os.Exit(1)
-	}
-
-	if parsedResponse.transactionID != transactionID {
-		fmt.Fprintf(os.Stderr, "Requested with transaction ID: %d, got %d\n", transactionID, parsedResponse.transactionID)
-		os.Exit(1)
-	}
-
-	printResponse(parsedResponse)
+	fmt.Println()
+	fmt.Println("Response A record:")
+	printResponse(parsedResponseA)
+	fmt.Println("Response AAAA record:")
+	printResponse(parsedResponseAAAA)
 }
