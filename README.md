@@ -16,5 +16,5 @@
 - **BF Compiler**: Brainfuck Compiler in LLVM - [Wikipedia](https://en.wikipedia.org/wiki/Brainfuck), [LLVM](https://llvm.org/docs/)
 - **OpenMP**: Learning OpenMP - [Introduction to OpenMP - Youtube](https://www.youtube.com/playlist?list=PLLX-Q6B8xqZ8n8bwjGdzBJ25X2utwnoEG)
 - **Bloom Filter**: Implementing Bloom Filter [Bloom Filter](https://en.wikipedia.org/wiki/Bloom_filter)
-- **Skip Lists**: Implementing skip lists [Skip Lists](https://en.wikipedia.org/wiki/Skip_list)
 - **Go Grep**: Implementing grep [Boyer-Moore Search Algorithm](https://en.wikipedia.org/wiki/Boyer%E2%80%93Moore_string-search_algorithm)
+- **DNS**: Implementing DNS building, receiving, parsing [DNS](https://en.wikipedia.org/wiki/Domain_Name_System) [RFC](https://datatracker.ietf.org/doc/html/rfc1035)
