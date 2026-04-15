@@ -16,7 +16,7 @@ extern "C" {
 #define VECDEF static inline
 #endif
 
-#define EPS 1e-8
+#define EPS 1e-8f
 
 typedef struct {
     float x, y;
@@ -49,7 +49,9 @@ VECDEF bool v2f_near_zero(V2f a) {
     return (fabsf(a.x) < EPS) && (fabsf(a.y) < EPS);
 }
 
-VECDEF void v2f_print(V2f a) { printf("x: %f, y: %f\n", a.x, a.y); }
+VECDEF void v2f_print(V2f a) {
+    printf("x: %f, y: %f\n", (double)a.x, (double)a.y);
+}
 
 typedef struct {
     float x, y, z;
@@ -106,14 +108,16 @@ VECDEF V3f v3f_neg(V3f a) { return (V3f){-a.x, -a.y, -a.z}; }
 
 VECDEF V3f v3f_inv(V3f a) { return (V3f){1 / a.x, 1 / a.y, 1 / a.z}; }
 
-VECDEF void v3f_print(V3f a) { printf("x: %f, y: %f, z; %f\n", a.x, a.y, a.z); }
+VECDEF void v3f_print(V3f a) {
+    printf("x: %f, y: %f, z; %f\n", (double)a.x, (double)a.y, (double)a.z);
+}
 
 VECDEF V3f v3f_clamp(V3f a, float min, float max) {
     return (V3f){clamp_float(a.x, min, max), clamp_float(a.y, min, max),
                  clamp_float(a.z, min, max)};
 }
 
-VECDEF V3f v3f_random() {
+VECDEF V3f v3f_random(void) {
     return (V3f){rng_f32_tls(), rng_f32_tls(), rng_f32_tls()};
 }
 
@@ -123,17 +127,17 @@ VECDEF V3f v3f_random_range(float min, float max) {
 }
 
 // TODO: find better way for random vector on sphere
-VECDEF V3f v3f_random_unit() {
+VECDEF V3f v3f_random_unit(void) {
     while (true) {
         V3f a = v3f_random();
         float len = v3f_slength(a);
-        if (len <= 1 && len >= 1e-50) {
+        if (len <= 1.0f && len >= 1e-38f) {
             return v3f_divf(a, sqrtf(len));
         }
     }
 }
 
-VECDEF V3f v3f_random_in_unit_disk() {
+VECDEF V3f v3f_random_in_unit_disk(void) {
     while (true) {
         V3f p = (V3f){rngf_range_tls(-1, 1), rngf_range_tls(-1, 1), 0};
         if (v3f_slength(p) < 1) return p;
@@ -143,7 +147,7 @@ VECDEF V3f v3f_random_in_unit_disk() {
 VECDEF V3f v3f_random_on_hemisphere(const V3f normal) {
     V3f on_unit_sphere = v3f_random_unit();
     if (v3f_dot(on_unit_sphere, normal) >
-        0.0)  // In the same hemisphere as the normal
+        0.0f)  // In the same hemisphere as the normal
         return on_unit_sphere;
     else
         return v3f_neg(on_unit_sphere);
@@ -154,7 +158,8 @@ VECDEF V3f v3f_reflect(const V3f a, const V3f n) {
 }
 
 VECDEF V3f v3f_refract(const V3f uv, const V3f n, float etai_eta) {
-    float cost = fmin(v3f_dot(v3f_neg(uv), n), 1);  // TODO: why fmin?
+    float cost =
+        (float)fmin((double)v3f_dot(v3f_neg(uv), n), 1.0);
 
     V3f r_out_perp = v3f_mulf(v3f_add(uv, v3f_mulf(n, cost)), etai_eta);
     V3f r_out_parallel = v3f_mulf(n, -1 * sqrtf(1 - v3f_slength(r_out_perp)));
