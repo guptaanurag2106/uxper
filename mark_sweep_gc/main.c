@@ -24,12 +24,13 @@ int main(void) {
 
     printf("\n[Test 1] basic roots\n");
     int *a = heap_alloc(sizeof(int), "int_a");
-    float *b = heap_alloc(sizeof(float), "float_b");
+    volatile float *b = heap_alloc(sizeof(float), "float_b");
 
     *a = 2;
     *b = 2.2f;
-    printf("&a -> %p a->%p %d, &b -> %p b->%p %f\n", (void *)&a, (void *)a, *a,
-           (void *)&b, (void *)b, *b);
+    /* printf("&a -> %p a->%p %d, &b -> %p b->%p %f\n", (void *)&a, (void *)a,
+     * *a, */
+    /*        (void *)&b, (void *)b, *b); */
 
     heap_info();
     printf("Collecting with a = NULL (expect a collected, b alive)\n");
@@ -68,6 +69,17 @@ int main(void) {
 
     printf("Collecting with alias = NULL (expect x collected)\n");
     x_alias = NULL;
+    heap_collect();
+    heap_info();
+
+    printf("\n[Test 4] Cyclic reference check\n");
+    Node *a1 = alloc_node(1, "a1");
+    Node *b1 = alloc_node(2, "b1");
+
+    a1->left = b1;
+    b1->left = a1;
+    a1 = NULL;
+    b1 = NULL;
     heap_collect();
     heap_info();
 
