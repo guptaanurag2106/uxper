@@ -19,3 +19,5 @@
 - **Go Grep**: Implementing grep [Boyer-Moore Search Algorithm](https://en.wikipedia.org/wiki/Boyer%E2%80%93Moore_string-search_algorithm)
 - **DNS**: Implementing DNS building, receiving, parsing [DNS](https://en.wikipedia.org/wiki/Domain_Name_System) [RFC](https://datatracker.ietf.org/doc/html/rfc1035)
 - **Linear Algebra**: Implementing Linear Algebra methods for matrices/vectors
+- **Linear Regression**: Implementing Linear Regressions from scratch [Linear Regression](https://en.wikipedia.org/wiki/Linear_regression)
+- **Markdown to HTML**: Implementing simple parser, converter from markdown to HTML [Common Mark](https://commonmark.org/)
