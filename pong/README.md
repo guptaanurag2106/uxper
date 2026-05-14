@@ -1,4 +1,4 @@
-# Implementing Pong in C+Raylib
+# Implementing Pong in Go+SDL
 
 ## Context
 - [Wikipedia](https://en.wikipedia.org/wiki/Pong)
