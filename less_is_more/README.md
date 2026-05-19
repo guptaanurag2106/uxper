@@ -14,5 +14,5 @@ Implementation of text classification using gzip-based compression, inspired by 
 make
 
 # Run (requires dataset paths)
-./main ./AG_Dataset/train.csv ./AG_Dataset/test.csv
+./main ../utils/datasets/AG_Dataset/train.csv ../utils/datasets/AG_Dataset/test.csv
 ```
