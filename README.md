@@ -23,3 +23,4 @@
 - **Markdown to HTML**: Implementing simple parser, converter from markdown to HTML [Common Mark](https://commonmark.org/)
 - **Pong**: Implementing Pong game in Go+SDL
 - **Learning OCaml**: [OCaml docs](https://ocaml.org/docs)
+- **Base64**: [Wikipedia](https://en.wikipedia.org/wiki/Base64) 
