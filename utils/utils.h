@@ -134,7 +134,9 @@ static inline double timersub_ms(const struct timeval *end,
 // ----------------------------------------------------------------------------
 //  Math Utils
 // ----------------------------------------------------------------------------
-#define PI 3.14159265359f
+#ifndef PI
+#define PI 3.14159265358979323846f
+#endif
 #define PI_2 (PI / 2)
 #define PI_3_4 (3.0f * PI / 4)
 #define PI_2_3 (2.0f * PI / 3)
@@ -538,6 +540,7 @@ UTILS_DEF bool triangle_is_inside(float x1, float y1, float x2, float y2,
     return (A == A1 + A2 + A3);
 }
 
+#ifndef strdup
 UTILS_DEF char *strdup(const char *src) {
     if (src == NULL) return NULL;
 
@@ -553,6 +556,7 @@ UTILS_DEF char *strdup(const char *src) {
 
     return dst;
 }
+#endif
 
 static char utils_static_temp_buffer[UTILS_MAX_TEMP_SIZE];
 static uint32_t utils_static_temp_buffer_pos = 0;
