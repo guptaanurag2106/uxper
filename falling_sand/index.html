@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Falling Sand</title>
+
+        <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: black;
+            width: 100%;
+            min-height: 100vh;
+        }
+        #canvas {
+            position: absolute;
+            top: 0%;
+            left: 50%;
+            transform: translate(-50%, 0%);
+            width: 800px;
+            height: 800px;
+            background-color: white;
+            image-rendering: pixelated;
+        }
+        div {
+            position: absolute;
+            left: 50%;
+            top: 820px;
+            transform: translate(-50%, 0%);
+        }
+        button {
+            all: unset;
+            background-color: white;
+            padding: 3px;
+            cursor: pointer;
+        }
+
+        </style>
+    </head>
+
+    <body>
+        <canvas id="canvas" width="800" height="800"></canvas>
+        <div>
+            <button id="sand">Sand</button>
+            <button id="wood">Wood</button>
+            <button id="smoke">Smoke</button>
+            <button id="fire">Fire</button>
+            <button id="clear">Clear</button>
+        </div>
+    </body>
+
+    <script src="./index.js" ></script>
+
+</html>
