@@ -26,3 +26,4 @@
 - **Marching Squares**: Implementing Marching Squares alogrithm [Wikipedia](https://en.wikipedia.org/wiki/Marching_squares)
 - **Base64**: [Wikipedia](https://en.wikipedia.org/wiki/Base64) 
 - **Falling Sand**: Falling sand simulation
+- **Bezeir Curves**: Implementing Bezeir Curves [Wikipedia](https://en.wikipedia.org/wiki/B%C3%A9zier_curve)
