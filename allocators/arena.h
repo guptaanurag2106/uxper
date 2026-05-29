@@ -65,7 +65,7 @@ typedef uint8_t *ArenaCheckpoint;
 
 ARENA_DEF ArenaCheckpoint arena_get_checkpoint(Arena *a);
 
-ARENA_DEF void *arena_get_ptr(Arena *a, ArenaCheckpoint cp);
+ARENA_DEF void *arena_get_ptr(ArenaCheckpoint cp);
 
 ARENA_DEF void arena_rewind(Arena *a, ArenaCheckpoint cp);
 
@@ -134,9 +134,7 @@ ARENA_DEF void *arena_alloc_aligned_zeroed(Arena *a, size_t size,
 
 ARENA_DEF ArenaCheckpoint arena_get_checkpoint(Arena *a) { return a->current; }
 
-ARENA_DEF void *arena_get_ptr(Arena *a, ArenaCheckpoint cp) {
-    return (void *)cp;
-}
+ARENA_DEF void *arena_get_ptr(ArenaCheckpoint cp) { return (void *)cp; }
 
 ARENA_DEF void arena_rewind(Arena *a, ArenaCheckpoint cp) {
     assert(cp >= a->buffer && cp <= a->buffer + a->capacity);
