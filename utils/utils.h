@@ -2,7 +2,6 @@
 #define UTILS_H_
 
 #include <assert.h>
-#include <ctype.h>
 #include <errno.h>
 #include <math.h>
 #include <pthread.h>
@@ -126,8 +125,8 @@ UTILS_DEF char *generate_uuid(void);
 static inline double timersub_ms(const struct timeval *end,
                                  const struct timeval *start) {
     double res = 0.0;
-    res += (end->tv_sec - start->tv_sec) * 1000.0;
-    res += (end->tv_usec - start->tv_usec) * 0.001;
+    res += ((double)end->tv_sec - (double)start->tv_sec) * 1000.0;
+    res += ((double)end->tv_usec - (double)start->tv_usec) * 0.001;
     return res;
 }
 
@@ -176,6 +175,10 @@ static inline float lerp_float(float start, float end, float t) {
 CLAMP_TYPE(int)
 CLAMP_TYPE(float)
 
+UTILS_DEF bool is_space(const char s);
+
+UTILS_DEF bool is_digit(const char s);
+
 UTILS_DEF bool is_number(const char *s);
 
 // warn: no modulus: wrap when just went beyond boundary
@@ -204,7 +207,11 @@ static inline void rng_seed(RNG *rng, uint32_t seed) {
     rng->state = seed ? seed : 0x12345678u;
 }
 static inline void rng_seed_tls(uint32_t seed) {
+#ifdef __cplusplus
+    rng_state = RNG{seed ? seed : 0x12345678u};
+#else
     rng_state = (RNG){seed ? seed : 0x12345678u};
+#endif
 }
 
 static inline uint32_t rng_u32(RNG *rng) {
@@ -233,7 +240,7 @@ static inline float rngf_range_tls(float min, float max) {
 }
 
 static inline int rngi_range(RNG *rng, int min, int max) {
-    return (int)rngf_range(rng, min, max + 1);
+    return (int)rngf_range(rng, (float)min, (float)max + 1.0f);
 }
 
 static inline int rngi_range_tls(int min, int max) {
@@ -332,8 +339,6 @@ UTILS_DEF bool triangle_is_inside(float x1, float y1, float x2, float y2,
 // ----------------------------------------------------------------------------
 //  String Utils
 // ----------------------------------------------------------------------------
-UTILS_DEF char *strdup(const char *src);
-
 #define UTILS_MAX_TEMP_SIZE 1024 * 100
 UTILS_DEF char *combine_charp(const char *str1, const char *str2);
 // Will use the utils_static_temp_buffer and reset it everytime its filled
@@ -436,6 +441,18 @@ UTILS_DEF char *generate_uuid(void) {
     return buf;
 }
 
+UTILS_DEF bool is_space(const char s) {
+    if (s == '\f' || s == '\n' || s == '\r' || s == '\t' || s == '\v') {
+        return true;
+    }
+    return false;
+}
+
+UTILS_DEF bool is_digit(const char s) {
+    if (s >= '0' && s <= '9') return true;
+    return false;
+}
+
 UTILS_DEF bool is_number(const char *s) {
     if (s == NULL || *s == '\0') return false;
 
@@ -486,15 +503,15 @@ UTILS_DEF int calculate_infix(const char *expr) {
 
     const char *p = expr;
     while (*p) {
-        if (isspace(*p)) {
+        if (is_space(*p)) {
             p++;
             continue;
         }
 
         // Parse number
-        if (isdigit(*p)) {
+        if (is_digit(*p)) {
             int val = 0;
-            while (isdigit(*p)) {
+            while (is_digit(*p)) {
                 val = val * 10 + (*p - '0');
                 p++;
             }
@@ -540,24 +557,6 @@ UTILS_DEF bool triangle_is_inside(float x1, float y1, float x2, float y2,
     return (A == A1 + A2 + A3);
 }
 
-#ifndef strdup
-UTILS_DEF char *strdup(const char *src) {
-    if (src == NULL) return NULL;
-
-    size_t len = strlen(src);
-    char *dst = malloc(sizeof(char) * (len + 1));
-    if (dst == NULL) {
-        Log(Log_Error, "strdup: malloc failed");
-        return NULL;
-    }
-
-    char *ptr = dst;
-    while ((*ptr++ = *src++));
-
-    return dst;
-}
-#endif
-
 static char utils_static_temp_buffer[UTILS_MAX_TEMP_SIZE];
 static uint32_t utils_static_temp_buffer_pos = 0;
 
@@ -576,7 +575,7 @@ UTILS_DEF char *combine_strings_with_sep_(const char *separator, ...) {
 
     va_start(args, separator);
     const char *s = va_arg(args, const char *);
-    int count = 0;
+    size_t count = 0;
     while (s != NULL) {
         total_len += strlen(s);
         s = va_arg(args, const char *);
@@ -638,7 +637,7 @@ UTILS_DEF char *temp_sprintf(const char *format, ...) {
         return NULL;
     }
 
-    if (utils_static_temp_buffer_pos + n + 1 > UTILS_MAX_TEMP_SIZE) {
+    if (utils_static_temp_buffer_pos + (uint32_t)n + 1 > UTILS_MAX_TEMP_SIZE) {
         // Log(Log_Info, "temp_sprintf: clearing existing buffer");
         utils_static_temp_buffer_pos = 0;
     }
@@ -649,7 +648,7 @@ UTILS_DEF char *temp_sprintf(const char *format, ...) {
     va_end(args);
 
     char *ret = utils_static_temp_buffer + utils_static_temp_buffer_pos;
-    utils_static_temp_buffer_pos += n + 1;
+    utils_static_temp_buffer_pos += (uint32_t)n + 1;
 
     return ret;
 }
