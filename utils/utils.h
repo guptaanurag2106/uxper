@@ -99,17 +99,16 @@ UTILS_DEF void Log(enum Log_Level level, const char *format, ...);
 #define ARRAY_LENGTH(arr) (sizeof(arr) / sizeof((arr)[0]))
 #endif
 
-#define UNREACHABLE(...)                                                  \
-    do {                                                                  \
-        fprintf(stderr, "[UNREACHABLE]: %s:%d \n" #__VA_ARGS__, __FILE__, \
-                __LINE__);                                                \
-        abort();                                                          \
+#define UNREACHABLE(str)                                                       \
+    do {                                                                       \
+        fprintf(stderr, "[UNREACHABLE]: %s:%d %s\n", __FILE__, __LINE__, str); \
+        abort();                                                               \
     } while (0)
 
-#define TODO(...)                                                             \
-    do {                                                                      \
-        fprintf(stderr, "[TODO]: %s:%d \n" #__VA_ARGS__, __FILE__, __LINE__); \
-        abort();                                                              \
+#define TODO(str)                                                       \
+    do {                                                                \
+        fprintf(stderr, "[TODO]: %s:%d %s\n", __FILE__, __LINE__, str); \
+        abort();                                                        \
     } while (0)
 
 #define UNUSED(x) (void)(x)
@@ -655,7 +654,7 @@ UTILS_DEF char *temp_sprintf(const char *format, ...) {
 
 UTILS_DEF char *read_entire_file(const char *filename) {
     if (filename == NULL || strlen(filename) == 0) {
-        Log(Log_Warn, "read_entire_file: Invalid file name");
+        Log(Log_Error, "read_entire_file: Invalid file name");
         return NULL;
     }
     FILE *f = fopen(filename, "r");
@@ -665,7 +664,12 @@ UTILS_DEF char *read_entire_file(const char *filename) {
                          strerror(errno)));
         return NULL;
     }
-    fseek(f, 0, SEEK_END);
+    if (fseek(f, 0, SEEK_END) < 0) {
+        Log(Log_Error,
+            temp_sprintf("read_entire_file: Cannot read file %s: %s ", filename,
+                         strerror(errno)));
+        return NULL;
+    }
     long file_size = ftell(f);
     fseek(f, 0, SEEK_SET);
 
