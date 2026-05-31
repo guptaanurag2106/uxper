@@ -1,0 +1,17 @@
+{
+  "zero": 0,
+  "neg_zero": -0,
+  "int_max": 2147483647,
+  "int_min": -2147483648,
+  "float_positive": 0.5,
+  "float_negative": -0.25,
+  "exponent_upper": 1E10,
+  "exponent_lower": 1e10,
+  "exponent_positive": 1.5e+2,
+  "exponent_negative": 1.5e-2,
+  "exponent_no_fraction": 1e10,
+  "fraction_only": 0.001,
+  "large_exponent": 1.23e45,
+  "small_exponent": 1.23e-45,
+  "minus_zero_float": -0.0
+}

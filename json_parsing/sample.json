@@ -1,0 +1,14 @@
+{
+    "id": 101,
+    "name": "Jane Doe",
+    "email": "jane.doe@example.com",
+    "is_active": true,
+    "login_count": 42,
+    "roles": ["Admin", "Editor"],
+    "address": [{
+        "street": "123 Tech Boulevard",
+        "city": "Bengaluru",
+        "postal_code": "560001",
+        "country": "India",
+    }],
+}

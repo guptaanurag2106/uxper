@@ -1,0 +1,6 @@
+{
+  "trailing_object_comma": {"a": 1, "b": 2,},
+  "trailing_array_comma": [1, 2, 3,],
+  "double_comma": [1,,2],
+  "leading_comma": [,1, 2]
+}

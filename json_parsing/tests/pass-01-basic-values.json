@@ -1,0 +1,11 @@
+{
+  "string": "hello world",
+  "number": 42,
+  "negative": -17,
+  "float": 3.14,
+  "bool_true": true,
+  "bool_false": false,
+  "null_value": null,
+  "scientific": 2.5e4,
+  "neg_exponent": 1e-3
+}

@@ -1,0 +1,12 @@
+{
+  "invalid_number_leading_zero": 0123,
+  "invalid_number_trailing_dot": 123.,
+  "invalid_number_double_dot": 1.2.3,
+  "invalid_number_double_e": 1e2e3,
+  "invalid_boolean": True,
+  "invalid_null": NULL,
+  "unquoted_key": bare_key,
+  "single_quoted": 'should be double',
+  "invalid_escape": "\q",
+  "lone_escape": "\"
+}
