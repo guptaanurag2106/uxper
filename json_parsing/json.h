@@ -1,8 +1,10 @@
 #ifndef JSON_H
 #define JSON_H
 
-#include "../utils/arena.h"
-#include "../utils/utils.h"
+#include <stdbool.h>
+#include <stddef.h>
+
+#include "arena.h"
 
 enum Node_Kind {
     JSON_NONE,
@@ -21,7 +23,12 @@ typedef struct {
 } String;
 
 typedef struct Json_Value Json_Value;
-Vector(Json_Value, Json_Arr_Data);
+// Vector(Json_Value, Json_Arr_Data);
+typedef struct Json_Arr_Data {
+    Json_Value *items;
+    size_t size;
+    size_t capacity;
+} Json_Arr_Data;
 union Json_Data {
     Json_Arr_Data arrval;
     struct Json *jsonval;
@@ -280,7 +287,7 @@ static void lexer_get_token(Lexer *l) {
             l->kind = TOKEN_END;
             break;
         default: {
-            if (is_digit(chr) || lexer_expect_bytes(l, "-", 1) ||
+            if ((chr >= '0' && chr <= '9') || lexer_expect_bytes(l, "-", 1) ||
                 lexer_expect_bytes(l, "+", 1)) {
                 // TODO: number formats e/E
                 bool is_real = false;
@@ -294,7 +301,7 @@ static void lexer_get_token(Lexer *l) {
                 chr = lexer_peek_char(l);
 
                 while (true) {
-                    if (is_digit(chr)) {
+                    if (chr >= '0' && chr <= '9') {
                         lexer_get_char(l);
                     } else if (chr == 'e' || chr == 'E') {
                         if (eE_present) break;
@@ -413,7 +420,7 @@ static char *lexer_print_token(Lexer *l) {
         case TOKEN_UNKNOWN:
             return arena_string_to_charp(l->arena, l->json_data.data.stringval);
         default:
-            ASSERT("unreachable token.kind");
+            assert(false && "unreachable token.kind");
             return "";
     }
 }
@@ -557,8 +564,6 @@ fail:
 static inline size_t max_size(size_t a, size_t b) { return a > b ? a : b; }
 
 Json *json_parse_file(const char *file_name) {
-    Log(Log_Info, "parsing: %s", file_name);
-
     FILE *f = fopen(file_name, "r");
     if (f == NULL) {
         json_set_error("json: could not open file '%s'", file_name);
@@ -724,7 +729,6 @@ void json_dump(Json *json, FILE *f, bool minified) {
 
 void json_free(Json *json) {
     if (json != NULL && json->is_toplevel) {
-        Log(Log_Info, "freeing: json object");
         Arena *arena = json->arena;
         arena_destroy(arena);
         free(arena);
