@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS=-Wall -Wextra -Wpedantic -g
+CFLAGS=-Wall -Wextra -g 
 
 all: main
 

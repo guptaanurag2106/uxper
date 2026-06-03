@@ -103,6 +103,7 @@ ARENA_DEF char *arena_combine_strings_with_sep_(Arena *a, const char *separator,
         size_t _new_sz = (new_cap) * sizeof(*(v)->items);                      \
         void *_new_items = arena_realloc_aligned((arena), (v)->items, _old_sz, \
                                                  _new_sz, _align);             \
+        assert(_new_items != NULL && "vec_push/reserve: realloc failed");      \
         if (_new_items == NULL) break;                                         \
         (v)->items = (__typeof__((v)->items))_new_items;                       \
         (v)->capacity = (new_cap);                                             \
@@ -115,17 +116,14 @@ ARENA_DEF char *arena_combine_strings_with_sep_(Arena *a, const char *separator,
 
 // Returns 0 on success, -1 on OOM.
 #define arena_vec_push(arena, v, value)                             \
-    ({                                                              \
-        int _rc = 0;                                                \
+    do {                                                            \
         if ((v)->size >= (v)->capacity) {                           \
             size_t _old_cap = (v)->capacity;                        \
             size_t _new_cap = (_old_cap == 0) ? 4 : (_old_cap * 2); \
             arena_vec__grow((arena), (v), _new_cap);                \
-            if ((v)->capacity == _old_cap) _rc = -1;                \
         }                                                           \
-        if (_rc == 0) (v)->items[(v)->size++] = (value);            \
-        _rc;                                                        \
-    })
+        (v)->items[(v)->size++] = (value);                          \
+    } while (0)
 
 #ifdef __cplusplus
 }

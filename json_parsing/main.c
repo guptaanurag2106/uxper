@@ -41,7 +41,7 @@ struct Json_DataS {
 };
 
 typedef struct Json {
-    char *input_file;
+    const char *input_file;
     struct Json *next;
     Arena *arena;  // shared for lexer, just 1 arena for lexer json tree etc
 
@@ -74,7 +74,6 @@ typedef struct {
     const char *path;
 
     Arena *arena;
-    Json *json;
 
     const char *curr;
     int line_number;
@@ -84,23 +83,67 @@ typedef struct {
     Json_DataS json_data;
 } Lexer;
 
-char *string_to_charp(Arena *arena, String data) {
+#define JSON_ERROR_STR_SIZE 1000
+static char json_error[JSON_ERROR_STR_SIZE] = "";
+
+#define json_set_error_raw(format)                   \
+    do {                                             \
+        int n = snprintf(NULL, 0, format);           \
+        if (n < 0 || n >= JSON_ERROR_STR_SIZE) {     \
+            break;                                   \
+        }                                            \
+        snprintf(json_error, (size_t)n + 1, format); \
+        json_error[n] = '\0';                        \
+    } while (0)
+
+#define json_set_error(format, args)                       \
+    do {                                                   \
+        int n = snprintf(NULL, 0, format, args);           \
+        if (n < 0 || n >= JSON_ERROR_STR_SIZE) {           \
+            break;                                         \
+        }                                                  \
+        snprintf(json_error, (size_t)n + 1, format, args); \
+        json_error[n] = '\0';                              \
+    } while (0)
+
+#define json_set_lerror_raw(l, format)                                    \
+    do {                                                                  \
+        int n = snprintf(NULL, 0, "%s:%d:%d: " format, l->path,           \
+                         l->line_number, l->line_offset);                 \
+        if (n < 0 || n >= JSON_ERROR_STR_SIZE) {                          \
+            break;                                                        \
+        }                                                                 \
+        snprintf(json_error, (size_t)n + 1, "%s:%d:%d: " format, l->path, \
+                 l->line_number, l->line_offset);                         \
+        json_error[n] = '\0';                                             \
+    } while (0)
+
+#define json_set_lerror(l, format, args)                                  \
+    do {                                                                  \
+        int n = snprintf(NULL, 0, "%s:%d:%d: " format, l->path,           \
+                         l->line_number, l->line_offset, args);           \
+        if (n < 0 || n >= JSON_ERROR_STR_SIZE) {                          \
+            break;                                                        \
+        }                                                                 \
+        snprintf(json_error, (size_t)n + 1, "%s:%d:%d: " format, l->path, \
+                 l->line_number, l->line_offset, args);                   \
+        json_error[n] = '\0';                                             \
+    } while (0)
+
+const char *json_get_error(void) { return json_error; }
+
+static char *string_to_charp(Arena *arena, String data) {
     return arena_sprintf(arena, "%.*s", (int)data.len, data.start);
 }
 
-char *lexer_print_position(Lexer *l) {
-    return arena_sprintf(l->arena, "%s:%d:%d", l->path, l->line_number,
-                         l->line_offset);
-}
-
-char lexer_peek_char(Lexer *l) {  // peeks next char
+static char lexer_peek_char(Lexer *l) {  // peeks next char
     if (l->curr >= (l->data.start + l->data.len - 1)) {
         return '\x03';  // TODO:end of text ???
     }
     return *(l->curr + 1);
 }
 
-char lexer_get_char(Lexer *l) {  // returns current char and move next
+static char lexer_get_char(Lexer *l) {  // returns current char and move next
     if (l->curr >= (l->data.start + l->data.len)) {
         return '\x03';  // TODO:end of text ???
     }
@@ -111,10 +154,10 @@ char lexer_get_char(Lexer *l) {  // returns current char and move next
         }
         curr = '\n';
         l->line_number++;
-        l->line_offset = 0;
+        l->line_offset = 1;
     } else if (curr == '\n') {
         l->line_number++;
-        l->line_offset = 0;
+        l->line_offset = 1;
     } else {
         l->line_offset++;
     }
@@ -124,7 +167,7 @@ char lexer_get_char(Lexer *l) {  // returns current char and move next
 }
 
 // just compare if next char match input
-bool lexer_expect_bytes(Lexer *l, const char *input) {
+static bool lexer_expect_bytes(Lexer *l, const char *input) {
     int len = 0;
     while (true) {
         if (input[len] == '\0') return true;
@@ -137,7 +180,7 @@ bool lexer_expect_bytes(Lexer *l, const char *input) {
 }
 
 // compare if next char match input, if so increment curr
-bool lexer_get_expect_bytes(Lexer *l, const char *input) {
+static bool lexer_get_expect_bytes(Lexer *l, const char *input) {
     if (lexer_expect_bytes(l, input)) {
         size_t len = strlen(input);
         for (size_t i = 0; i < len; i++) {
@@ -149,13 +192,7 @@ bool lexer_get_expect_bytes(Lexer *l, const char *input) {
     }
 }
 
-static char *json_error;
-
-void json_set_error() {}
-
-char *json_get_error(void) { return json_error; }
-
-void lexer_get_token(Lexer *l) {
+static void lexer_get_token(Lexer *l) {
     char chr = *l->curr;
     switch (chr) {
         case '{':
@@ -182,9 +219,9 @@ void lexer_get_token(Lexer *l) {
             l->kind = TOKEN_COLON;
             lexer_get_char(l);
             break;
-        case '"':  // get string
+        case '"': {  // get string
             lexer_get_char(l);
-            char *start = l->curr;
+            const char *start = l->curr;
             size_t len = 0;
             l->kind = TOKEN_STRING;
             char c = lexer_get_char(l);
@@ -199,7 +236,7 @@ void lexer_get_token(Lexer *l) {
             }
             l->json_data.data_kind = JSON_STRING;
             l->json_data.data.stringval = (String){.start = start, .len = len};
-            break;
+        } break;
         case '\n':
         case '\r':
         case ' ':
@@ -207,7 +244,10 @@ void lexer_get_token(Lexer *l) {
             lexer_get_char(l);
             lexer_get_token(l);
             break;
-        default:
+        case '\x03':
+            l->kind = TOKEN_END;
+            break;
+        default: {
             if (is_digit(chr) || lexer_expect_bytes(l, "-") ||
                 lexer_expect_bytes(l, "+")) {
                 // TODO: number formats e/E -+
@@ -242,10 +282,17 @@ void lexer_get_token(Lexer *l) {
                     l->kind = TOKEN_REAL;
                     errno = 0;
                     char *end;
+                    //"123." is valid strtod but not in json
                     double realval = strtod(start, &end);
                     if (errno == ERANGE) {
-                        fprintf(stderr, "%s: double overflow detected\n",
-                                lexer_print_position(l));
+                        json_set_lerror_raw(l,
+                                            "invalid number: double overflow");
+                        l->kind = TOKEN_UNKNOWN;
+                        return;
+                    }
+                    if (*(end - 1) == '.') {
+                        json_set_lerror_raw(
+                            l, "invalid number: decimal cannot end with '.'");
                         l->kind = TOKEN_UNKNOWN;
                         return;
                     }
@@ -253,14 +300,18 @@ void lexer_get_token(Lexer *l) {
                     l->json_data.data.realval =
                         realval * (is_negative ? -1 : 1);
                 } else {
+                    if (*start == '0') {
+                        l->kind = TOKEN_UNKNOWN;
+                        json_set_lerror_raw(l, "invalid integer: leading zero");
+                        return;
+                    }
                     l->kind = TOKEN_NUMBER;
                     errno = 0;
                     char *end;
                     long numval = strtol(start, &end, 10);
                     if (errno == ERANGE) {
                         l->kind = TOKEN_UNKNOWN;
-                        fprintf(stderr, "%s: long overflow detected\n",
-                                lexer_print_position(l));
+                        json_set_lerror_raw(l, "invalid integer: overflow");
                         return;
                     }
                     l->json_data.data_kind = JSON_NUMBER;
@@ -280,17 +331,18 @@ void lexer_get_token(Lexer *l) {
                 l->kind = TOKEN_BOOL;
                 l->json_data.data_kind = JSON_BOOL;
                 l->json_data.data.boolval = false;
-            } else if (l->curr == (l->data.start + l->data.len)) {
+            } else if (l->curr >= (l->data.start + l->data.len)) {
                 l->kind = TOKEN_END;
             } else {
                 l->kind = TOKEN_UNKNOWN;
                 l->json_data.data.stringval =
                     (String){.start = l->curr, .len = 1};
             }
+        }
     }
 }
 
-char *lexer_print_token(Lexer *l) {
+static char *lexer_print_token(Lexer *l) {
     switch (l->kind) {
         case TOKEN_OPENCURLY:
             return "{";
@@ -336,12 +388,13 @@ char *lexer_print_token(Lexer *l) {
     }
 }
 
-static size_t __max(size_t a, size_t b) { return a > b ? a : b; }
+static size_t max_size(size_t a, size_t b) { return a > b ? a : b; }
 
-Json *__parse_json(Lexer *l, bool toplevel);
-bool __json_put_data(Json *json, Lexer *l);
+static bool json_parse_object(Lexer *l, Json **res, bool toplevel);
+static bool json_put_data(Json *json, Lexer *l);
 
-bool __parse_json_array(Lexer *l, Json_Arr_Data *arr) {
+static bool json_parse_array(Lexer *l, Json_Arr_Data *arr) {
+    ArenaCheckpoint cp = arena_get_checkpoint(l->arena);
     *arr = (Json_Arr_Data){0};
     while (true) {
         lexer_get_token(l);
@@ -350,26 +403,28 @@ bool __parse_json_array(Lexer *l, Json_Arr_Data *arr) {
         }
 
         Json json = {0};
-        if (!__json_put_data(&json, l)) {
-            fprintf(stderr, "%s: expected json value got '%s'\n",
-                    lexer_print_position(l), lexer_print_token(l));
+        if (!json_put_data(&json, l)) {
+            json_set_lerror(l, "expected json value, got '%s'",
+                            lexer_print_token(l));
+            arena_rewind(l->arena, cp);
             return false;
         }
-        vec_push(arr, json.json_data);
+        arena_vec_push(l->arena, arr, json.json_data);
 
         lexer_get_token(l);
         if (l->kind == TOKEN_CLOSESQUARE) {
             return true;
         }
         if (l->kind != TOKEN_COMMA) {
-            fprintf(stderr, "%s: expected ',' or ']' got '%s'\n",
-                    lexer_print_position(l), lexer_print_token(l));
+            json_set_lerror(l, "expected ',' or ']', got '%s'",
+                            lexer_print_token(l));
+            arena_rewind(l->arena, cp);
             return false;
         }
     }
 }
 
-bool __json_put_data(Json *json, Lexer *l) {
+static bool json_put_data(Json *json, Lexer *l) {
     switch (l->kind) {
         case TOKEN_STRING:
         case TOKEN_NUMBER:
@@ -378,39 +433,39 @@ bool __json_put_data(Json *json, Lexer *l) {
         case TOKEN_NULL:
             json->kind = l->json_data.data_kind;
             json->json_data = l->json_data;
-            break;
+            return true;
         case TOKEN_OPENCURLY:
             json->kind = JSON_OBJ;
             json->json_data.data_kind = JSON_OBJ;
-            json->json_data.data.jsonval = __parse_json(l, false);
-            break;
+            if (!json_parse_object(l, &json->json_data.data.jsonval, false)) {
+                return false;
+            }
+
+            return true;
         case TOKEN_OPENSQUARE:
             json->kind = JSON_ARRAY;
             json->json_data.data_kind = JSON_ARRAY;
-            if (!__parse_json_array(l, &json->json_data.data.arrval)) {
+            if (!json_parse_array(l, &json->json_data.data.arrval)) {
                 return false;
             }
-            break;
+            return true;
         default:
             return false;
     }
-    return true;
 }
 
-Json *__parse_json(Lexer *l, bool toplevel) {
+static bool json_parse_object(Lexer *l, Json **res, bool toplevel) {
+    ArenaCheckpoint cp = arena_get_checkpoint(l->arena);
     Json *json = arena_alloc_struct_zeroed(l->arena, Json);
     if (json == NULL) {
-        fprintf(stderr, "%s: error parsing from here, malloc failed\n",
-                lexer_print_position(l));
+        json_set_lerror_raw(l, "out of memory");
     }
-
     if (toplevel) {
-        if (!__json_put_data(json, l)) {
-            fprintf(stderr, "%s: expected json value got '%s'\n",
-                    lexer_print_position(l), lexer_print_token(l));
-            return NULL;
+        if (!json_put_data(json, l)) {
+            goto fail;
         }
-        return json;
+        *res = json;
+        return true;
     }
 
     lexer_get_token(l);
@@ -419,9 +474,9 @@ Json *__parse_json(Lexer *l, bool toplevel) {
             json->key = string_to_charp(l->arena, l->json_data.data.stringval);
             lexer_get_token(l);
             if (l->kind != TOKEN_COLON) {
-                fprintf(stderr, "%s: expected ':' got '%s'\n",
-                        lexer_print_position(l), lexer_print_token(l));
-                return NULL;
+                json_set_lerror(l, "expected ':', got '%s'",
+                                lexer_print_token(l));
+                goto fail;
             }
             lexer_get_token(l);
             switch (l->kind) {
@@ -432,50 +487,57 @@ Json *__parse_json(Lexer *l, bool toplevel) {
                 case TOKEN_NULL:
                 case TOKEN_OPENCURLY:
                 case TOKEN_OPENSQUARE:
-                    __json_put_data(json, l);
+                    if (!json_put_data(json, l)) {
+                        goto fail;
+                    }
                     break;
                 default:
-                    fprintf(stderr, "%s: expected json value got '%s'\n",
-                            lexer_print_position(l), lexer_print_token(l));
-                    return NULL;
+                    json_set_lerror(l, "expected json value, got '%s'",
+                                    lexer_print_token(l));
+                    goto fail;
             }
             lexer_get_token(l);
-            if (l->kind == TOKEN_CLOSECURLY) {
-                return json;
-            }
             if (l->kind != TOKEN_COMMA) {  // TODO: trailing comma
-                fprintf(stderr, "%s: expected ',' got '%s'\n",
-                        lexer_print_position(l), lexer_print_token(l));
-                return NULL;
+                json_set_lerror(l, "expected ',', got '%s'",
+                                lexer_print_token(l));
+                goto fail;
             }
             break;
         case TOKEN_CLOSECURLY:
-            return NULL;
-            break;
-        case TOKEN_UNKNOWN:
-            return NULL;
+            return true;
         default:
-            fprintf(stderr, "%s: expected '}' got '%s'\n",
-                    lexer_print_position(l), lexer_print_token(l));
-            return NULL;
+            json_set_lerror(l, "expected '}', got '%s'", lexer_print_token(l));
+            goto fail;
     }
-    json->next = __parse_json(l, false);
-    return json;
+    if (!json_parse_object(l, &json->next, false)) {
+        goto fail;
+    }
+    if (l->kind != TOKEN_CLOSECURLY) {
+        json_set_lerror(l, "expected '}', got '%s'", lexer_print_token(l));
+        goto fail;
+    }
+    *res = json;
+    return true;
+
+fail:
+    *res = NULL;
+    arena_rewind(l->arena, cp);
+    return false;
 }
 
-Json *parse_json(char *file_name) {
+Json *json_parse_file(const char *file_name) {
     Log(Log_Info, "parsing: %s", file_name);
     const char *data = read_entire_file(file_name);
     if (data == NULL) {
-        fprintf(stderr, "Json: Could not read file %s\n", file_name);
+        json_set_error("json: could not read file '%s'", file_name);
         return NULL;
     }
 
     Arena *arena = malloc(sizeof(Arena));
-    const size_t arena_size =
-        __max(sizeof(Json) * 10, 20 * strlen(data));  // TODO: ??
+    const size_t input_len = strlen(data);
+    const size_t arena_size = max_size(sizeof(Json) * 64, input_len * 64);
     if (arena_create(arena, arena_size) < 0) {
-        fprintf(stderr, "Json: Error could not malloc\n");
+        json_set_error_raw("json: out of memory");
         return NULL;
     }
 
@@ -484,16 +546,17 @@ Json *parse_json(char *file_name) {
                    .curr = data,
                    .path = file_name,
                    .line_number = 1,
-                   .line_offset = 0,
-                   .json = NULL};
+                   .line_offset = 1};
 
     lexer_get_token(&lexer);
-    Json *json = __parse_json(&lexer, true);
-    if (json == NULL) return NULL;
+    Json *json = NULL;
+    if (!json_parse_object(&lexer, &json, true) || json == NULL) {
+        return NULL;
+    }
     lexer_get_token(&lexer);
     if (lexer.kind != TOKEN_END) {
-        fprintf(stderr, "%s: unknown token expected EOF got '%s'\n",
-                lexer_print_position(&lexer), lexer_print_token(&lexer));
+        json_set_lerror((&lexer), "expected EOF, got '%s'",
+                        lexer_print_token(&lexer));
         return NULL;
     }
 
@@ -503,18 +566,25 @@ Json *parse_json(char *file_name) {
     return json;
 }
 
-void __dump_json(Json *json, FILE *f, int indent_len);
-void __dump_json_data(Json_DataS *json_data, FILE *f, int indent_len) {
+static void json_dump_impl(Json *json, FILE *f, int indent_len, bool minified);
+static void json_dump_data(Json_DataS *json_data, FILE *f, int indent_len,
+                           bool minified) {
     switch (json_data->data_kind) {
         case JSON_NONE:
             return;
         case JSON_OBJ:
-            fprintf(f, "{\n");
+            if (minified) {
+                fprintf(f, "{");
+            } else {
+                fprintf(f, "{\n");
+            }
             indent_len += 4;
-            __dump_json(json_data->data.jsonval, f, indent_len);
+            json_dump_impl(json_data->data.jsonval, f, indent_len, minified);
             indent_len -= 4;
-            for (int i = 0; i < indent_len; i++) {
-                fprintf(f, " ");
+            if (!minified) {
+                for (int i = 0; i < indent_len; i++) {
+                    fprintf(f, " ");
+                }
             }
             fprintf(f, "}");
             break;
@@ -522,10 +592,13 @@ void __dump_json_data(Json_DataS *json_data, FILE *f, int indent_len) {
             fprintf(f, "[");
             size_t len = json_data->data.arrval.size;
             for (size_t i = 0; i < len; i++) {
-                __dump_json_data(&json_data->data.arrval.items[i], f,
-                                 indent_len);
+                json_dump_data(&json_data->data.arrval.items[i], f, indent_len,
+                               minified);
                 if (i != len - 1) {
-                    fprintf(f, ", ");
+                    if (minified)
+                        fprintf(f, ",");
+                    else
+                        fprintf(f, ", ");
                 }
             }
             fprintf(f, "]");
@@ -549,33 +622,49 @@ void __dump_json_data(Json_DataS *json_data, FILE *f, int indent_len) {
     }
 }
 
-void __dump_json(Json *json, FILE *f, int indent_len) {
+static void json_dump_impl(Json *json, FILE *f, int indent_len, bool minified) {
     if (json == NULL) return;
 
     while (json != NULL) {
-        for (int i = 0; i < indent_len; i++) {
-            fprintf(f, " ");
+        if (!minified) {
+            for (int i = 0; i < indent_len; i++) {
+                fprintf(f, " ");
+            }
         }
 
         if (!json->is_toplevel) {
             if (json->key == NULL) {
-                Log(Log_Error, "dump_json: Null key encountered");
+                json_set_error_raw("json_dump: null key encountered");
                 return;
             }
-            fprintf(f, "\"%s\": ", json->key);
+            if (minified) {
+                fprintf(f, "\"%s\":", json->key);
+            } else {
+                fprintf(f, "\"%s\": ", json->key);
+            }
         }
 
-        __dump_json_data(&json->json_data, f, indent_len);
-        if (json->next != NULL) fprintf(f, ",");
-        fprintf(f, "\n");
+        json_dump_data(&json->json_data, f, indent_len, minified);
+        if (json->next != NULL) {
+            if (minified)
+                fprintf(f, ",");
+            else
+                fprintf(f, ", ");
+        }
+        if (!minified) {
+            fprintf(f, "\n");
+        }
 
         json = json->next;
     }
 }
 
-void dump_json(Json *json, FILE *f) { __dump_json(json, f, 0); }
+void json_dump(Json *json, FILE *f, bool minified) {
+    json_dump_impl(json, f, 0, minified);
+    if (minified) fprintf(f, "\n");
+}
 
-void free_json(Json *json) {
+void json_free(Json *json) {
     if (json != NULL && json->is_toplevel) {
         Log(Log_Info, "freeing: json object");
         arena_destroy(json->arena);
@@ -592,12 +681,16 @@ int main(int argc, char **argv) {
     }
 
     char *input_file = shift(&argc, &argv);
-    Json *json = parse_json(input_file);
-    if (json == NULL) return 1;
+    Json *json = json_parse_file(input_file);
+    if (json == NULL) {
+        fprintf(stderr, "%s\n", json_get_error());
+        return 1;
+    }
 
     Log(Log_Info, "dumping: %s", json->input_file);
-    dump_json(json, stdout);
-    free_json(json);
+    json_dump(json, stdout, false);
+    json_dump(json, stdout, true);
+    json_free(json);
 
     return 0;
 }
