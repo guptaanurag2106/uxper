@@ -2,6 +2,7 @@
 #define ARENA_H_
 
 #include <assert.h>
+#include <errno.h>
 #include <stdarg.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -96,6 +97,8 @@ ARENA_DEF char *arena_combine_strings_with_sep_(Arena *a, const char *separator,
 #define ARENA_COMBINE(arena, separator, ...) \
     arena_combine_strings_with_sep_((arena), (separator), __VA_ARGS__, NULL)
 
+ARENA_DEF char *arena_read_entire_file(Arena *arena, const char *filename);
+
 #define arena_vec__grow(arena, v, new_cap)                                     \
     do {                                                                       \
         size_t _align = _Alignof(*(v)->items);                                 \
@@ -115,14 +118,14 @@ ARENA_DEF char *arena_combine_strings_with_sep_(Arena *a, const char *separator,
     } while (0)
 
 // Returns 0 on success, -1 on OOM.
-#define arena_vec_push(arena, v, value)                             \
-    do {                                                            \
-        if ((v)->size >= (v)->capacity) {                           \
-            size_t _old_cap = (v)->capacity;                        \
-            size_t _new_cap = (_old_cap == 0) ? 4 : (_old_cap * 2); \
-            arena_vec__grow((arena), (v), _new_cap);                \
-        }                                                           \
-        (v)->items[(v)->size++] = (value);                          \
+#define arena_vec_push(arena, v, value)                                 \
+    do {                                                                \
+        if ((v)->size >= (v)->capacity) {                               \
+            size_t _old_cap = (v)->capacity;                            \
+            size_t _new_cap = (_old_cap == 0) ? 4 : (_old_cap * 1.618); \
+            arena_vec__grow((arena), (v), _new_cap);                    \
+        }                                                               \
+        (v)->items[(v)->size++] = (value);                              \
     } while (0)
 
 #ifdef __cplusplus
@@ -206,6 +209,15 @@ ARENA_DEF void *arena_realloc(Arena *a, const void *ptr, size_t old_size,
                                  _Alignof(max_align_t));
 }
 
+ARENA_DEF ArenaCheckpoint arena_get_checkpoint(Arena *a) { return a->current; }
+
+ARENA_DEF void *arena_get_ptr(ArenaCheckpoint cp) { return (void *)cp; }
+
+ARENA_DEF void arena_rewind(Arena *a, ArenaCheckpoint cp) {
+    assert(cp >= a->buffer && cp <= a->buffer + a->capacity);
+    a->current = cp;
+}
+
 ARENA_DEF char *arena_sprintf(Arena *a, const char *format, ...) {
     va_list args;
     va_start(args, format);
@@ -279,13 +291,37 @@ ARENA_DEF char *arena_combine_strings_with_sep_(Arena *a, const char *separator,
     return out;
 }
 
-ARENA_DEF ArenaCheckpoint arena_get_checkpoint(Arena *a) { return a->current; }
+ARENA_DEF char *arena_read_entire_file(Arena *arena, const char *filename) {
+    if (filename == NULL || strlen(filename) == 0) {
+        fprintf(stderr, "read_entire_file: Invalid file name");
+        return NULL;
+    }
+    FILE *f = fopen(filename, "r");
+    if (f == NULL) {
+        fprintf(stderr, "read_entire_file: Cannot open file %s: %s ", filename,
+                strerror(errno));
+        return NULL;
+    }
+    if (fseek(f, 0, SEEK_END) < 0) {
+        fprintf(stderr, "read_entire_file: Cannot read file %s: %s ", filename,
+                strerror(errno));
+        return NULL;
+    }
+    long file_size = ftell(f);
+    fseek(f, 0, SEEK_SET);
 
-ARENA_DEF void *arena_get_ptr(ArenaCheckpoint cp) { return (void *)cp; }
+    char *contents = (char *)arena_alloc_aligned(
+        arena, (file_size + 1) * sizeof(char), _Alignof(char));
+    if (contents == NULL) {
+        fprintf(stderr, "read_entire_file: Cannot read file %s: malloc failed",
+                filename);
+        return NULL;
+    }
+    fread(contents, file_size, 1, f);
+    contents[file_size] = '\0';
+    fclose(f);
 
-ARENA_DEF void arena_rewind(Arena *a, ArenaCheckpoint cp) {
-    assert(cp >= a->buffer && cp <= a->buffer + a->capacity);
-    a->current = cp;
+    return contents;
 }
 
 #endif

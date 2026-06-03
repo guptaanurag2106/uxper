@@ -268,12 +268,12 @@ UTILS_DEF bool triangle_is_inside(float x1, float y1, float x2, float y2,
         (v)->capacity = 0; \
     } while (0)
 
-#define vec__grow(items, capacity, elem_size)                        \
-    do {                                                             \
-        size_t new_cap = (*(capacity) == 0 ? 1 : (*(capacity) * 2)); \
-        void *new_items = realloc(*(items), new_cap * (elem_size));  \
-        *(items) = new_items;                                        \
-        *(capacity) = new_cap;                                       \
+#define vec__grow(items, capacity, elem_size)                            \
+    do {                                                                 \
+        size_t new_cap = (*(capacity) == 0 ? 4 : (*(capacity) * 1.618)); \
+        void *new_items = realloc(*(items), new_cap * (elem_size));      \
+        *(items) = new_items;                                            \
+        *(capacity) = new_cap;                                           \
     } while (0)
 
 #define vec_reserve(v, n)                                            \
