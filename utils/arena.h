@@ -317,7 +317,25 @@ ARENA_DEF char *arena_read_entire_file(Arena *arena, const char *filename) {
                 filename);
         return NULL;
     }
-    fread(contents, file_size, 1, f);
+    size_t read = fread(contents, 1, file_size, f);
+    if (read != file_size) {
+        if (ferror(f)) {
+            fprintf(stderr,
+                    "read_entire_file: Error while reading %s: "
+                    "read %zu bytes out of %zu, %s",
+                    filename, read, file_size, strerror(errno));
+            clearerr(f);
+        } else {
+            fprintf(stderr,
+                    "read_entire_file: Error while reading %s: "
+                    "read %zu bytes out of %ld",
+                    filename, read, file_size);
+        }
+    }
+    if (ferror(f)) {
+        fprintf(stderr, "read_entire_file: Error while reading %s:", filename,
+                strerror(errno));
+    }
     contents[file_size] = '\0';
     fclose(f);
 

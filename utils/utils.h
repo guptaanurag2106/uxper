@@ -659,15 +659,13 @@ UTILS_DEF char *read_entire_file(const char *filename) {
     }
     FILE *f = fopen(filename, "r");
     if (f == NULL) {
-        Log(Log_Error,
-            temp_sprintf("read_entire_file: Cannot open file %s: %s ", filename,
-                         strerror(errno)));
+        Log(Log_Error, temp_sprintf("read_entire_file: Cannot open file %s: %s",
+                                    filename, strerror(errno)));
         return NULL;
     }
     if (fseek(f, 0, SEEK_END) < 0) {
-        Log(Log_Error,
-            temp_sprintf("read_entire_file: Cannot read file %s: %s ", filename,
-                         strerror(errno)));
+        Log(Log_Error, temp_sprintf("read_entire_file: Cannot read file %s: %s",
+                                    filename, strerror(errno)));
         return NULL;
     }
     long file_size = ftell(f);
@@ -680,8 +678,26 @@ UTILS_DEF char *read_entire_file(const char *filename) {
                          filename));
         return NULL;
     }
-    fread(contents, file_size, 1, f);
-    contents[file_size] = '\0';
+    size_t read = fread(contents, 1, file_size, f);
+    if (read != file_size) {
+        if (ferror(f)) {
+            Log(Log_Error,
+                temp_sprintf("read_entire_file: Error while reading %s: "
+                             "read %zu bytes out of %zu, %s",
+                             filename, read, file_size, strerror(errno)));
+            clearerr(f);
+        } else {
+            Log(Log_Error,
+                temp_sprintf("read_entire_file: Error while reading %s: "
+                             "read %zu bytes out of %ld",
+                             filename, read, file_size));
+        }
+    }
+    if (ferror(f)) {
+        Log(Log_Error, temp_sprintf("read_entire_file: Error while reading %s:",
+                                    filename, strerror(errno)));
+    }
+    contents[read] = '\0';
     fclose(f);
 
     return contents;
