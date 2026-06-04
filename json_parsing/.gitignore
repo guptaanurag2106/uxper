@@ -1,3 +1,4 @@
 main
 test/data_10mb.json
 test/data_250mb.json
+compile_commands.json

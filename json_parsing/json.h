@@ -1,6 +1,7 @@
 #ifndef JSON_H
 #define JSON_H
 
+#include <assert.h>
 #include <stdbool.h>
 #include <stddef.h>
 
@@ -23,12 +24,13 @@ typedef struct {
 } String;
 
 typedef struct Json_Value Json_Value;
-// Vector(Json_Value, Json_Arr_Data);
+
 typedef struct Json_Arr_Data {
     Json_Value *items;
     size_t size;
     size_t capacity;
 } Json_Arr_Data;
+
 union Json_Data {
     Json_Arr_Data arrval;
     struct Json *jsonval;
@@ -37,6 +39,7 @@ union Json_Data {
     String stringval;
     bool boolval;
 };
+
 struct Json_Value {
     union Json_Data data;
     enum Node_Kind data_kind;
@@ -44,7 +47,7 @@ struct Json_Value {
 
 typedef struct Json {
     Json_Value json_data;
-    const char *key;
+    String key;
     const char *input_file;
 
     struct Json *next;
@@ -52,15 +55,16 @@ typedef struct Json {
     bool is_toplevel;
 } Json;
 
-typedef struct Lexer Lexer;
-
 const char *json_get_error(void);
 
+Json *json_parse_string(const char *file_content);
 Json *json_parse_file(const char *file_name);
 
 void json_dump(Json *json, FILE *f, bool minified);
 
 void json_free(Json *json);
+
+// Traverse, query
 
 enum Node_Kind json_kind(const Json *node);
 
@@ -112,7 +116,7 @@ enum Token_Kind {
     TOKEN_UNKNOWN
 };
 
-struct Lexer {
+typedef struct Lexer {
     Json_Value json_data;
     Arena *arena;
     const char *path;
@@ -124,7 +128,7 @@ struct Lexer {
 
     int line_number;
     int line_offset;
-};
+} Lexer;
 
 #define JSON_ERROR_STR_SIZE 500
 static char json_error[JSON_ERROR_STR_SIZE] = "";
@@ -146,15 +150,15 @@ static char json_error[JSON_ERROR_STR_SIZE] = "";
         json_error[n] = '\0';                                            \
     } while (0)
 
-#define json_set_lerror_raw(l, format)                                         \
-    do {                                                                       \
-        int n = snprintf(json_error, JSON_ERROR_STR_SIZE, "%s:%d:%d: " format, \
-                         l->path, l->line_number, l->line_offset);             \
-        if (n < 0 || n >= JSON_ERROR_STR_SIZE) {                               \
-            fprintf(stderr, "Error message length exceeded %d bytes\n",        \
-                    JSON_ERROR_STR_SIZE);                                      \
-        }                                                                      \
-        json_error[n] = '\0';                                                  \
+#define json_set_lerror_raw(l, str)                                         \
+    do {                                                                    \
+        int n = snprintf(json_error, JSON_ERROR_STR_SIZE, "%s:%d:%d: " str, \
+                         l->path, l->line_number, l->line_offset);          \
+        if (n < 0 || n >= JSON_ERROR_STR_SIZE) {                            \
+            fprintf(stderr, "Error message length exceeded %d bytes\n",     \
+                    JSON_ERROR_STR_SIZE);                                   \
+        }                                                                   \
+        json_error[n] = '\0';                                               \
     } while (0)
 
 #define json_set_lerror(l, format, args)                                       \
@@ -223,9 +227,8 @@ static bool lexer_expect_bytes(Lexer *l, const char *input, size_t strlen) {
 // compare if next char match input, if so increment curr
 static bool lexer_get_expect_bytes(Lexer *l, const char *input, size_t strlen) {
     if (lexer_expect_bytes(l, input, strlen)) {
-        for (size_t i = 0; i < strlen; i++) {
-            lexer_get_char(l);
-        }
+        l->curr += strlen;
+        l->line_offset += strlen;
         return true;
     }
     return false;
@@ -289,7 +292,6 @@ static void lexer_get_token(Lexer *l) {
         default: {
             if ((chr >= '0' && chr <= '9') || lexer_expect_bytes(l, "-", 1) ||
                 lexer_expect_bytes(l, "+", 1)) {
-                // TODO: number formats e/E
                 bool is_real = false;
                 bool is_negative = false;
                 bool eE_present = false;
@@ -363,16 +365,16 @@ static void lexer_get_token(Lexer *l) {
                     l->json_data.data_kind = JSON_NUMBER;
                     l->json_data.data.numval = numval * (is_negative ? -1 : 1);
                 }
-            } else if (lexer_expect_bytes(l, "null", 1)) {
+            } else if (lexer_expect_bytes(l, "null", 4)) {
                 lexer_get_expect_bytes(l, "null", 4);
                 l->kind = TOKEN_NULL;
                 l->json_data.data_kind = JSON_NULL;
-            } else if (lexer_expect_bytes(l, "true", 1)) {
+            } else if (lexer_expect_bytes(l, "true", 4)) {
                 lexer_get_expect_bytes(l, "true", 4);
                 l->kind = TOKEN_BOOL;
                 l->json_data.data_kind = JSON_BOOL;
                 l->json_data.data.boolval = true;
-            } else if (lexer_expect_bytes(l, "false", 1)) {
+            } else if (lexer_expect_bytes(l, "false", 5)) {
                 lexer_get_expect_bytes(l, "false", 5);
                 l->kind = TOKEN_BOOL;
                 l->json_data.data_kind = JSON_BOOL;
@@ -473,6 +475,7 @@ static bool json_put_data(Json *json, Lexer *l) {
             if (!json_parse_object(l, &json->json_data.data.jsonval, false)) {
                 return false;
             }
+            assert(l->kind == TOKEN_CLOSECURLY);
 
             return true;
         case TOKEN_OPENSQUARE:
@@ -504,8 +507,7 @@ static bool json_parse_object(Lexer *l, Json **res, bool toplevel) {
     lexer_get_token(l);
     switch (l->kind) {
         case TOKEN_STRING:
-            json->key =
-                arena_string_to_charp(l->arena, l->json_data.data.stringval);
+            json->key = l->json_data.data.stringval;
             lexer_get_token(l);
             if (l->kind != TOKEN_COLON) {
                 json_set_lerror(l, "expected ':', got '%s'",
@@ -526,6 +528,9 @@ static bool json_parse_object(Lexer *l, Json **res, bool toplevel) {
                     }
                     break;
                 case TOKEN_UNKNOWN:
+                    json_set_lerror(
+                        l, "expected json value, got unknown token '%s'",
+                        lexer_print_token(l));
                     goto fail;
                 default:
                     json_set_lerror(l, "expected json value, got '%s'",
@@ -533,7 +538,8 @@ static bool json_parse_object(Lexer *l, Json **res, bool toplevel) {
                     goto fail;
             }
             lexer_get_token(l);
-            if (l->kind != TOKEN_COMMA) {  // TODO: trailing comma
+            if (l->kind == TOKEN_CLOSECURLY) goto end;
+            if (l->kind != TOKEN_COMMA) {  // TODO: allows trailing commas
                 json_set_lerror(l, "expected ',', got '%s'",
                                 lexer_print_token(l));
                 goto fail;
@@ -548,6 +554,7 @@ static bool json_parse_object(Lexer *l, Json **res, bool toplevel) {
     if (!json_parse_object(l, &json->next, false)) {
         goto fail;
     }
+end:
     if (l->kind != TOKEN_CLOSECURLY) {
         json_set_lerror(l, "expected '}', got '%s'", lexer_print_token(l));
         goto fail;
@@ -562,6 +569,44 @@ fail:
 }
 
 static inline size_t max_size(size_t a, size_t b) { return a > b ? a : b; }
+
+Json *json_parse_string(const char *file_content) {
+    size_t file_size = strlen(file_content);
+    Arena *arena = malloc(sizeof(Arena));
+    if (arena == NULL) {
+        json_set_error_raw("json: out of memory");
+        return NULL;
+    }
+    const size_t arena_size = max_size(sizeof(Json) * 64, file_size * 15);
+    if (arena_create(arena, arena_size) < 0) {
+        json_set_error_raw("json: out of memory");
+        return NULL;
+    }
+
+    Lexer lexer = {.arena = arena,
+                   .end = file_content + file_size,
+                   .curr = file_content,
+                   .path = "",
+                   .line_number = 1,
+                   .line_offset = 1};
+
+    lexer_get_token(&lexer);
+    Json *json = NULL;
+    if (!json_parse_object(&lexer, &json, true) || json == NULL) {
+        return NULL;
+    }
+    lexer_get_token(&lexer);
+    if (lexer.kind != TOKEN_END) {
+        json_set_lerror((&lexer), "expected EOF, got '%s'",
+                        lexer_print_token(&lexer));
+        return NULL;
+    }
+
+    json->input_file = "";
+    json->arena = arena;
+    json->is_toplevel = true;
+    return json;
+}
 
 Json *json_parse_file(const char *file_name) {
     FILE *f = fopen(file_name, "r");
@@ -696,14 +741,14 @@ static void json_dump_impl(Json *json, FILE *f, int indent_len, bool minified) {
         }
 
         if (!json->is_toplevel) {
-            if (json->key == NULL) {
+            if (json->key.start == NULL || json->key.len == 0) {
                 json_set_error_raw("json_dump: null key encountered");
                 return;
             }
             if (minified) {
-                fprintf(f, "\"%s\":", json->key);
+                fprintf(f, "\"%.*s\":", (int)json->key.len, json->key.start);
             } else {
-                fprintf(f, "\"%s\": ", json->key);
+                fprintf(f, "\"%.*s\": ", (int)json->key.len, json->key.start);
             }
         }
 
@@ -754,7 +799,7 @@ bool json_is_array(const Json *node) { return json_is(node, JSON_ARRAY); }
 
 const char *json_key(const Json *member) {
     if (member == NULL) return NULL;
-    return member->key;
+    return arena_string_to_charp(member->arena, member->key);
 }
 
 const Json *json_next(const Json *member) {
@@ -769,8 +814,11 @@ const Json *json_first(const Json *obj) {
 
 const Json *json_find(const Json *obj, const char *key) {
     if (obj == NULL || key == NULL) return NULL;
+    size_t keylen = strlen(key);
     for (const Json *it = json_first(obj); it != NULL; it = json_next(it)) {
-        if (it->key != NULL && strcmp(it->key, key) == 0) return it;
+        if (it->key.start != NULL && keylen == it->key.len &&
+            strncmp(it->key.start, key, keylen) == 0)
+            return it;
     }
     return NULL;
 }
