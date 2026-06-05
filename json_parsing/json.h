@@ -121,8 +121,8 @@ typedef struct Lexer {
     Arena *arena;
     const char *path;
 
-    const char *end;
     const char *curr;
+    const char *end;
 
     enum Token_Kind kind;
 
@@ -133,6 +133,7 @@ typedef struct Lexer {
 #define JSON_ERROR_STR_SIZE 500
 static char json_error[JSON_ERROR_STR_SIZE] = "";
 
+// TODO:some error say json:, some say json_dump:, some say just expected ...
 #define json_set_error_raw(msg)               \
     do {                                      \
         memcpy(json_error, msg, strlen(msg)); \
@@ -150,6 +151,8 @@ static char json_error[JSON_ERROR_STR_SIZE] = "";
         json_error[n] = '\0';                                            \
     } while (0)
 
+// FIX: currently all error reporting points(line_offset) to end of token not
+// start
 #define json_set_lerror_raw(l, str)                                         \
     do {                                                                    \
         int n = snprintf(json_error, JSON_ERROR_STR_SIZE, "%s:%d:%d: " str, \
@@ -234,6 +237,7 @@ static bool lexer_get_expect_bytes(Lexer *l, const char *input, size_t strlen) {
     return false;
 }
 
+// TODO:maybe should return bool? to express end of parsing and report error
 static void lexer_get_token(Lexer *l) {
     char chr = *l->curr;
     switch (chr) {
@@ -279,10 +283,17 @@ static void lexer_get_token(Lexer *l) {
             l->json_data.data_kind = JSON_STRING;
             l->json_data.data.stringval = (String){.start = start, .len = len};
         } break;
-        case '\n':
-        case '\r':
         case ' ':
         case '\t':
+            while ((*l->curr) == ' ' || (*l->curr) == '\t') {
+                // won't overflow as string is null terminated
+                l->curr++;
+                l->line_offset++;
+            }
+            l->curr--;
+            l->line_offset--;
+        case '\r':
+        case '\n':
             lexer_get_char(l);
             lexer_get_token(l);
             break;
@@ -295,6 +306,7 @@ static void lexer_get_token(Lexer *l) {
                 bool is_real = false;
                 bool is_negative = false;
                 bool eE_present = false;
+                const char *orig_start = l->curr;
                 if (lexer_get_expect_bytes(l, "-", 1)) {
                     is_negative = true;
                 } else if (lexer_get_expect_bytes(l, "+", 1)) {
@@ -334,7 +346,12 @@ static void lexer_get_token(Lexer *l) {
                     if (errno == ERANGE) {
                         json_set_lerror_raw(l,
                                             "invalid number: double overflow");
+                        // FIX: for all invalid in this case, no value set, and
+                        // error reported as unknown not as invalid
+                        // number/decimal overflow etc
                         l->kind = TOKEN_UNKNOWN;
+                        l->json_data.data.stringval =
+                            (String){.start = orig_start, .len = 1};
                         return;
                     }
                     //"123." is valid strtod but not in json
@@ -342,6 +359,8 @@ static void lexer_get_token(Lexer *l) {
                         json_set_lerror_raw(
                             l, "invalid number: decimal cannot end with '.'");
                         l->kind = TOKEN_UNKNOWN;
+                        l->json_data.data.stringval =
+                            (String){.start = orig_start, .len = 1};
                         return;
                     }
                     l->json_data.data_kind = JSON_REAL;
@@ -353,13 +372,18 @@ static void lexer_get_token(Lexer *l) {
                     char *end;
                     long numval = strtol(start, &end, 10);
                     if (errno == ERANGE) {
+                        json_set_lerror_raw(l,
+                                            "invalid number: integer overflow");
                         l->kind = TOKEN_UNKNOWN;
-                        json_set_lerror_raw(l, "invalid integer: overflow");
+                        l->json_data.data.stringval =
+                            (String){.start = orig_start, .len = 1};
                         return;
                     }
                     if (*start == '0' && numval != 0) {
+                        json_set_lerror_raw(l, "invalid number: leading zero");
                         l->kind = TOKEN_UNKNOWN;
-                        json_set_lerror_raw(l, "invalid integer: leading zero");
+                        l->json_data.data.stringval =
+                            (String){.start = orig_start, .len = 1};
                         return;
                     }
                     l->json_data.data_kind = JSON_NUMBER;
@@ -382,6 +406,7 @@ static void lexer_get_token(Lexer *l) {
             } else if (l->curr >= (l->end)) {
                 l->kind = TOKEN_END;
             } else {
+                json_set_lerror(l, "unknown token: %s", *l->curr);
                 l->kind = TOKEN_UNKNOWN;
                 l->json_data.data.stringval =
                     (String){.start = l->curr, .len = 1};
@@ -390,6 +415,8 @@ static void lexer_get_token(Lexer *l) {
     }
 }
 
+// TODO: print the '' here, as { will be '{' but <EOF> shouldn't be '<EOF>' and
+// string should be '"str"'
 static char *lexer_print_token(Lexer *l) {
     switch (l->kind) {
         case TOKEN_OPENCURLY:
@@ -407,7 +434,7 @@ static char *lexer_print_token(Lexer *l) {
         case TOKEN_NUMBER:
             return arena_sprintf(l->arena, "%ld", l->json_data.data.numval);
         case TOKEN_REAL:
-            return arena_sprintf(l->arena, "%f", l->json_data.data.realval);
+            return arena_sprintf(l->arena, "%lf", l->json_data.data.realval);
         case TOKEN_STRING:
             return arena_string_to_charp(l->arena, l->json_data.data.stringval);
         case TOKEN_BOOL:
@@ -418,7 +445,7 @@ static char *lexer_print_token(Lexer *l) {
         case TOKEN_NULL:
             return "null";
         case TOKEN_END:
-            return "";
+            return "<EOF>";
         case TOKEN_UNKNOWN:
             return arena_string_to_charp(l->arena, l->json_data.data.stringval);
         default:
@@ -540,7 +567,7 @@ static bool json_parse_object(Lexer *l, Json **res, bool toplevel) {
             lexer_get_token(l);
             if (l->kind == TOKEN_CLOSECURLY) goto end;
             if (l->kind != TOKEN_COMMA) {  // TODO: allows trailing commas
-                json_set_lerror(l, "expected ',', got '%s'",
+                json_set_lerror(l, "expected ',' or '}', got '%s'",
                                 lexer_print_token(l));
                 goto fail;
             }
@@ -570,8 +597,18 @@ fail:
 
 static inline size_t max_size(size_t a, size_t b) { return a > b ? a : b; }
 
+// TODO: merge json_parse_string and json_parse_file
 Json *json_parse_string(const char *file_content) {
+    if (file_content == NULL) {
+        json_set_error_raw("json: file_content is null");
+        return NULL;
+    }
     size_t file_size = strlen(file_content);
+    if (file_size == 0) {
+        json_set_error_raw("json: file_content is empty");
+        return NULL;
+    }
+
     Arena *arena = malloc(sizeof(Arena));
     if (arena == NULL) {
         json_set_error_raw("json: out of memory");
@@ -609,6 +646,10 @@ Json *json_parse_string(const char *file_content) {
 }
 
 Json *json_parse_file(const char *file_name) {
+    if (file_name == NULL || file_name == "") {
+        json_set_error_raw("json: invalid file_name");
+        return NULL;
+    }
     FILE *f = fopen(file_name, "r");
     if (f == NULL) {
         json_set_error("json: could not open file '%s'", file_name);
@@ -623,6 +664,10 @@ Json *json_parse_file(const char *file_name) {
 
     long file_size = ftell(f);
     fseek(f, 0, SEEK_SET);
+    if (file_size == 0) {
+        json_set_error("json: file %s is empty", file_name);
+        return NULL;
+    }
 
     Arena *arena = malloc(sizeof(Arena));
     if (arena == NULL) {
