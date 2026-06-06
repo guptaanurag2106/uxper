@@ -90,7 +90,7 @@ FLAG_DEF int flag_get_rem_argc();
 FLAG_DEF char **flag_get_rem_argv();
 
 #ifdef __cplusplus
-extern "C" {
+}
 #endif
 #endif  // FLAG_H_
 

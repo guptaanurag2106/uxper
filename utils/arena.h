@@ -193,6 +193,8 @@ ARENA_DEF void *arena_alloc_zeroed(Arena *a, size_t size) {
     return arena_alloc_aligned_zeroed(a, size, _Alignof(max_align_t));
 }
 
+// TODO:see if still works if the ptr is the last allocated thing (can we reuse
+// the space somehow)
 ARENA_DEF void *arena_realloc_aligned(Arena *a, const void *ptr,
                                       size_t old_size, size_t new_size,
                                       size_t align) {

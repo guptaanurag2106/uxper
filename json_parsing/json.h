@@ -3,7 +3,6 @@
 
 #include <assert.h>
 #include <stdbool.h>
-#include <stddef.h>
 
 #include "arena.h"
 
@@ -97,6 +96,8 @@ bool json_bool(const Json *node);
 size_t json_array_size(const Json *arr);
 
 const Json_Value *json_array_at(const Json *arr, size_t i);
+
+#endif  // JSON_H
 
 #ifdef JSON_IMPLEMENTATION
 
@@ -406,7 +407,7 @@ static void lexer_get_token(Lexer *l) {
             } else if (l->curr >= (l->end)) {
                 l->kind = TOKEN_END;
             } else {
-                json_set_lerror(l, "unknown token: %s", *l->curr);
+                json_set_lerror(l, "unknown token: %c", *l->curr);
                 l->kind = TOKEN_UNKNOWN;
                 l->json_data.data.stringval =
                     (String){.start = l->curr, .len = 1};
@@ -646,7 +647,7 @@ Json *json_parse_string(const char *file_content) {
 }
 
 Json *json_parse_file(const char *file_name) {
-    if (file_name == NULL || file_name == "") {
+    if (file_name == NULL || strlen(file_name) == 0) {
         json_set_error_raw("json: invalid file_name");
         return NULL;
     }
@@ -899,5 +900,3 @@ const Json_Value *json_array_at(const Json *arr, size_t i) {
     return &arr->json_data.data.arrval.items[i];
 }
 #endif
-
-#endif  // JSON_H

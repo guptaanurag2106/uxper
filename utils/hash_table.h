@@ -29,9 +29,9 @@ char *ht_get(ht_table *ht, const char *key);
 bool ht_set(ht_table *ht, const char *key, const char *value);
 void ht_delete(ht_table *ht, const char *key);
 
-#endif // ifndef HTB_H_
+#endif  // ifndef HTB_H_
 
-#ifndef HASH_TABLE_IMPLEMENTATION
+#ifdef HASH_TABLE_IMPLEMENTATION
 
 static int ht__is_prime(const int x) {
     if (x < 2) {
