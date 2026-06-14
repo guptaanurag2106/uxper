@@ -1,0 +1,5 @@
+*.o
+misc
+echo
+wc
+fibonacci
