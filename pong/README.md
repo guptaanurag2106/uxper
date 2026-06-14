@@ -5,6 +5,10 @@
 
 - Two files `main.go` with image buffer and blit to texture, `main2.go` with SDL drawing primitives.
 
+## Visuals
+![Pong](./game.png)
+![Pong](./end.png)
+
 ## Build and Run
 ```bash
 # Build & Run
