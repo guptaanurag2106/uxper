@@ -320,7 +320,7 @@ ARENA_DEF char *arena_read_entire_file(Arena *arena, const char *filename) {
         return NULL;
     }
     size_t read = fread(contents, 1, file_size, f);
-    if (read != file_size) {
+    if (read != (size_t)file_size) {
         if (ferror(f)) {
             fprintf(stderr,
                     "read_entire_file: Error while reading %s: "
@@ -335,7 +335,7 @@ ARENA_DEF char *arena_read_entire_file(Arena *arena, const char *filename) {
         }
     }
     if (ferror(f)) {
-        fprintf(stderr, "read_entire_file: Error while reading %s:", filename,
+        fprintf(stderr, "read_entire_file: Error while reading %s:%s", filename,
                 strerror(errno));
     }
     contents[file_size] = '\0';
