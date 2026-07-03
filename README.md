@@ -29,3 +29,4 @@
 - **Bezeir Curves**: Implementing Bezeir Curves [Wikipedia](https://en.wikipedia.org/wiki/B%C3%A9zier_curve)
 - **JSON Parser**: Implementing a JSON Serializer, Deserializer [JSON](https://www.json.org/json-en.html)
 - **Learning Assembly**: [NASM](https://www.nasm.us/doc/)
+- **Sorting**: Trying some sorting algorithms
