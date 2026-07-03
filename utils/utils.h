@@ -143,18 +143,18 @@ static inline double timersub_ms(const struct timeval *end,
 #define DEG2RAD(_d) ((_d) * (PI / 180.0f))
 #define RAD2DEG(_r) ((_r) * (180.0f / PI))
 
-#define CEILF(x)                                  \
-    ({                                            \
-        float _x = (x);                           \
-        int _i = (int)_x;                         \
-        (_i == _x) ? _i : (_x > 0 ? _i + 1 : _i); \
+#define CEILF(x)                                         \
+    ({                                                   \
+        float _x = (x);                                  \
+        int _i = (int)_x;                                \
+        ((float)_i == _x) ? _i : (_x > 0 ? _i + 1 : _i); \
     })
 
-#define FLOATF(x)                                 \
-    ({                                            \
-        float _x = (x);                           \
-        int _i = (int)_x;                         \
-        (_i == _x) ? _i : (_x > 0 ? _i : _i - 1); \
+#define FLOATF(x)                                        \
+    ({                                                   \
+        float _x = (x);                                  \
+        int _i = (int)_x;                                \
+        ((float)_i == _x) ? _i : (_x > 0 ? _i : _i - 1); \
     })
 
 static inline float lerp_float(float start, float end, float t) {
@@ -200,7 +200,7 @@ typedef struct RNG {
     uint32_t state;
 } RNG;
 
-static RNG rng_state = {0x12345678u};
+static UTILS_TLS RNG rng_state = {0x12345678u};
 
 static inline void rng_seed(RNG *rng, uint32_t seed) {
     rng->state = seed ? seed : 0x12345678u;
@@ -268,12 +268,13 @@ UTILS_DEF bool triangle_is_inside(float x1, float y1, float x2, float y2,
         (v)->capacity = 0; \
     } while (0)
 
-#define vec__grow(items, capacity, elem_size)                            \
-    do {                                                                 \
-        size_t new_cap = (*(capacity) == 0 ? 4 : (*(capacity) * 1.618)); \
-        void *new_items = realloc(*(items), new_cap * (elem_size));      \
-        *(items) = new_items;                                            \
-        *(capacity) = new_cap;                                           \
+#define vec__grow(items, capacity, elem_size)                                 \
+    do {                                                                      \
+        size_t new_cap =                                                      \
+            (*(capacity) == 0 ? 4 : (size_t)((double)(*(capacity)) * 1.618)); \
+        void *new_items = realloc(*(items), new_cap * (elem_size));           \
+        *(items) = new_items;                                                 \
+        *(capacity) = new_cap;                                                \
     } while (0)
 
 #define vec_reserve(v, n)                                            \
@@ -297,11 +298,31 @@ UTILS_DEF bool triangle_is_inside(float x1, float y1, float x2, float y2,
 
 #define vec_back(v) vec_get(v, (v)->size - 1)
 
+#define vec_swap(v, i1, i2)                           \
+    do {                                              \
+        __typeof__(*(v)->items) t = ((v)->items[i1]); \
+        ((v)->items[i1]) = ((v)->items[i2]);          \
+        ((v)->items[i2]) = t;                         \
+    } while (0)
+
 #define vec_remove_swap(v, i)                      \
     do {                                           \
         (v)->items[i] = (v)->items[(v)->size - 1]; \
         --(v)->size;                               \
     } while (0)
+
+#define vec_reverse(v)                                    \
+    do {                                                  \
+        for (size_t _i = 0; _i < ((v)->size) / 2; _i++) { \
+            vec_swap(v, _i, (v)->size - _i - 1);          \
+        }                                                 \
+    } while (0)
+
+#define vec_subvec(v, start, end)                                 \
+    (__typeof__(*v)) {                                            \
+        .items = &((v)->items[start]), .size = ((end) - (start)), \
+        .capacity = (v)->capacity,                                \
+    }
 
 #define vec_search_first(v, item, cmp_fn)                \
     ({                                                   \
@@ -334,6 +355,16 @@ UTILS_DEF bool triangle_is_inside(float x1, float y1, float x2, float y2,
         (v)->capacity = 0;    \
         p;                    \
     })
+
+#define vec_copy(v_src, v_dest)                                               \
+    do {                                                                      \
+        (v_dest)->size = (v_src)->size;                                       \
+        (v_dest)->capacity = (v_src)->capacity;                               \
+        (v_dest)->items = realloc((v_dest)->items,                            \
+                                  (v_dest)->size * sizeof(*(v_dest)->items)); \
+        memcpy((v_dest)->items, (v_src)->items,                               \
+               (v_dest)->size * sizeof(*(v_dest)->items));                    \
+    } while (0)
 
 // ----------------------------------------------------------------------------
 //  String Utils
