@@ -99,16 +99,17 @@ UTILS_DEF void Log(enum Log_Level level, const char *format, ...);
 #define ARRAY_LENGTH(arr) (sizeof(arr) / sizeof((arr)[0]))
 #endif
 
-#define UNREACHABLE(str)                                                       \
-    do {                                                                       \
-        fprintf(stderr, "[UNREACHABLE]: %s:%d %s\n", __FILE__, __LINE__, str); \
-        abort();                                                               \
+#define UNREACHABLE(str)                                                  \
+    do {                                                                  \
+        fprintf(stderr, "%s:%d: [UNREACHABLE]: %s\n", __FILE__, __LINE__, \
+                str);                                                     \
+        abort();                                                          \
     } while (0)
 
-#define TODO(str)                                                       \
-    do {                                                                \
-        fprintf(stderr, "[TODO]: %s:%d %s\n", __FILE__, __LINE__, str); \
-        abort();                                                        \
+#define TODO(str)                                                        \
+    do {                                                                 \
+        fprintf(stderr, "%s:%d: [TODO]: %s\n", __FILE__, __LINE__, str); \
+        abort();                                                         \
     } while (0)
 
 #define UNUSED(x) (void)(x)
