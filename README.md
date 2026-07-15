@@ -30,3 +30,4 @@
 - **JSON Parser**: Implementing a JSON Serializer, Deserializer [JSON](https://www.json.org/json-en.html)
 - **Learning Assembly**: [NASM](https://www.nasm.us/doc/)
 - **Sorting**: Trying some sorting algorithms
+- **Gnuplot**: Trying out [gnuplot(https://en.wikipedia.org/wiki/Gnuplot)
