@@ -2,7 +2,6 @@
 #define ARENA_H_
 
 #include <assert.h>
-#include <errno.h>
 #include <stdarg.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -134,6 +133,7 @@ ARENA_DEF char *arena_read_entire_file(Arena *arena, const char *filename);
 #endif  // ARENA_H_
 
 #ifdef ARENA_IMPLEMENTATION
+#include <errno.h>
 
 ARENA_DEF int arena_create(Arena *arena, size_t size) {
     arena->buffer = (uint8_t *)(ARENA_BACKEND_MALLOC(size));
@@ -163,7 +163,7 @@ ARENA_DEF void *arena_alloc_aligned(Arena *a, size_t size, size_t align) {
     uintptr_t base = (uintptr_t)a->buffer;
 
     if (size > (size_t)(cur - base)) {
-        fprintf(stderr, "arena_alloc: Could not malloc, not enough space\n");
+        fprintf(stderr, "arena_alloc: Could not alloc, not enough space\n");
         return NULL;  // not enough space
     }
 

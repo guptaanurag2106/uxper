@@ -2,8 +2,6 @@
 #define UTILS_H_
 
 #include <assert.h>
-#include <errno.h>
-#include <math.h>
 #include <pthread.h>
 #include <stdarg.h>
 #include <stdbool.h>
@@ -390,6 +388,11 @@ UTILS_DEF char *read_entire_file(const char *filename);
 
 #ifdef UTILS_IMPLEMENTATION
 
+#include <errno.h>
+#include <math.h>
+#include <stdio.h>
+#include <stdlib.h>
+
 static FILE *_log_output_file = NULL;
 
 UTILS_DEF int Log_set_out_file(const char *out_file) {
@@ -701,6 +704,13 @@ UTILS_DEF char *read_entire_file(const char *filename) {
         return NULL;
     }
     long file_size = ftell(f);
+    if (file_size < 0) {
+        Log(Log_Error,
+            temp_sprintf("read_entire_file: Cannot get file size of %s: %s",
+                         filename, strerror(errno)));
+        return NULL;
+    }
+
     fseek(f, 0, SEEK_SET);
 
     char *contents = (char *)malloc((file_size + 1) * sizeof(char));
@@ -711,7 +721,7 @@ UTILS_DEF char *read_entire_file(const char *filename) {
         return NULL;
     }
     size_t read = fread(contents, 1, file_size, f);
-    if (read != file_size) {
+    if (read != (size_t)file_size) {
         if (ferror(f)) {
             Log(Log_Error,
                 temp_sprintf("read_entire_file: Error while reading %s: "
