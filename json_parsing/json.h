@@ -1,3 +1,11 @@
+/*
+How to use
+#include "json.h"
+
+In main file define the following to include implementation for both json
+parsing and arena functions: #define JSON_IMPLEMENTATION #define
+ARENA_IMPLEMENTATION
+*/
 #ifndef JSON_H
 #define JSON_H
 
@@ -111,7 +119,7 @@ const Json_Value *json_array_at(const Json *arr, size_t i);
 
 #endif  // JSON_H
 
-#ifndef JSON_IMPLEMENTATION
+#ifdef JSON_IMPLEMENTATION
 #include <errno.h>
 
 enum Token_Kind {
@@ -657,12 +665,16 @@ Json *json_parse_string(const char *file_content) {
     json__lexer_get_token(&lexer);
     Json *json = NULL;
     if (!json__parse_object(&lexer, &json, true) || json == NULL) {
+        arena_destroy(arena);
+        free(arena);
         return NULL;
     }
     json__lexer_get_token(&lexer);
     if (lexer.kind != TOKEN_END) {
         json__set_lerror((&lexer), "expected EOF, got '%s'",
                          json__lexer_print_token(&lexer));
+        arena_destroy(arena);
+        free(arena);
         return NULL;
     }
 
@@ -764,7 +776,7 @@ void json__string_write(Json__String *s, const char *format, ...) {
         return;
     }
 
-    if ((int)(s->capacity - s->size) <= n) {
+    while ((int)(s->capacity - s->size) <= (n + 1)) {
         if (s->capacity == 0) s->capacity = 1;
         s->capacity *= 2;
         s->items = realloc(s->items, s->capacity * sizeof(*s->items));
@@ -892,7 +904,6 @@ static void json__dump_impl(Json *json, Json__Writer *w, int indent_len,
 char *json_stringify(Json *json, bool minified) {
     Json__Writer writer = {.string = {0}};
     json__dump_impl(json, &writer, 0, minified);
-    if (minified) json__string_write(&writer.string, "\n");
     writer.string.items[writer.string.size] = 0;
     return writer.string.items;
 }

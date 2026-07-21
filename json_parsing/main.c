@@ -5,10 +5,11 @@
 
 #define JSON_IMPLEMENTATION
 #define ARENA_IMPLEMENTATION
-#include "json.h"
-#define UTILS_IMPLEMENTATION
 #include <cJSON.h>
 
+#include "json.h"
+
+#define UTILS_IMPLEMENTATION
 #include "utils.h"
 
 int main(int argc, char **argv) {
@@ -31,24 +32,27 @@ int main(int argc, char **argv) {
         free(scene_file_content);
         return 1;
     } else {
-        // json_dump(json, stdout, false);
+        json_dump(json, stdout, false);
+        // json_dump(json, stdout, true);
+        // char *res = json_stringify(json, true);
+        // printf("%s\n", res);
         gettimeofday(&end, NULL);
         json_free(json);
         printf("json.h time taken: %fms\n", timersub_ms(&end, &start));
     }
 
-    // gettimeofday(&start, NULL);
-    // cJSON *cjson = cJSON_Parse(scene_file_content);
-    // if (cjson == NULL) {
-    //     free(scene_file_content);
-    //     return 1;
-    // } else {
-    // //     printf("%s\n", cJSON_Print(cjson));
-    //     gettimeofday(&end, NULL);
-    //     free(scene_file_content);
-    //     printf("cJSON time taken: %fms\n", timersub_ms(&end, &start));
-    // }
-    // cJSON_Delete(cjson);
+    gettimeofday(&start, NULL);
+    cJSON *cjson = cJSON_Parse(scene_file_content);
+    if (cjson == NULL) {
+        free(scene_file_content);
+        return 1;
+    } else {
+        //     printf("%s\n", cJSON_Print(cjson));
+        gettimeofday(&end, NULL);
+        free(scene_file_content);
+        printf("cJSON time taken: %fms\n", timersub_ms(&end, &start));
+    }
+    cJSON_Delete(cjson);
 
     return 0;
 }

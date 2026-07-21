@@ -3,7 +3,7 @@
     "name": "Jane Doe",
     "email": "jane.doe@example.com",
     "is_active": true,
-    "login_count": 42,
+    "login_count": 42.2,
     "roles": ["Admin", "Editor"],
     "address": [{
         "street": "123 Tech Boulevard",
