@@ -10,7 +10,7 @@ main: main.c
 	$(CC) $(CFLAGS) -o $@ $< $(LDFLAGS)
 
 test: test.c
-	$(CC) $(CFLAGS) -o $@ $< $(LDFLAGS)
+	$(CC) -g -I../utils -o $@ $<
 
 clean: 
 	rm main

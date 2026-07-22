@@ -29,13 +29,8 @@ int main(int argc, char **argv) {
     Json *json = json_parse_string(scene_file_content);
     if (json == NULL) {
         printf("%s\n", json_get_error());
-        free(scene_file_content);
-        return 1;
     } else {
-        json_dump(json, stdout, false);
-        // json_dump(json, stdout, true);
-        // char *res = json_stringify(json, true);
-        // printf("%s\n", res);
+        json_dump(json, stdout, true);
         gettimeofday(&end, NULL);
         json_free(json);
         printf("json.h time taken: %fms\n", timersub_ms(&end, &start));
@@ -44,15 +39,22 @@ int main(int argc, char **argv) {
     gettimeofday(&start, NULL);
     cJSON *cjson = cJSON_Parse(scene_file_content);
     if (cjson == NULL) {
+        const char *indicator =
+            "                                                          ^";
+        fprintf(stderr, "load_scene: JSON parse error near: %.30s\n%s",
+                cJSON_GetErrorPtr() ? cJSON_GetErrorPtr() - 15 : "unknown",
+                indicator);
         free(scene_file_content);
-        return 1;
     } else {
-        //     printf("%s\n", cJSON_Print(cjson));
+        printf("%s\n", cJSON_PrintUnformatted(cjson));
         gettimeofday(&end, NULL);
         free(scene_file_content);
         printf("cJSON time taken: %fms\n", timersub_ms(&end, &start));
+        cJSON_Delete(cjson);
     }
-    cJSON_Delete(cjson);
 
     return 0;
 }
+// TODO:in sample.json the float comes as 3.141593 and not as 3.141592653589793,
+// and having "smallInt": -9223372036854775808 makes it fail with
+// :21:37: expected json value, got unknown token '-'

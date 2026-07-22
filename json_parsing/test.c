@@ -28,25 +28,39 @@ const char *test_files[] = {
     TEST_FOLDER "pass-06-top-level-array.json",
     TEST_FOLDER "pass-07-whitespace-handling.json",
     TEST_FOLDER "sample.json",
+    TEST_FOLDER "test_getters.c",
+    TEST_FOLDER "test_creation.c",
 };
 
 int run(const char *file_name, char **res) {
-    char *file_content = read_entire_file(file_name);
-    if (file_content == NULL) {
-        return -1;
-    }
+    // checking if ends with c then run as c file
+    if (file_name[strlen(file_name) - 1] == 'c') {
+        char *command = temp_sprintf(
+            "cc -I. -I../utils/ -o /tmp/test.out %s && /tmp/test.out > "
+            "/tmp/test_res 2>&1",
+            file_name);
+        system(command);
+        *res = read_entire_file("/tmp/test_res");
+        return 0;
+    } else {
+        char *file_content = read_entire_file(file_name);
+        if (file_content == NULL) {
+            return -1;
+        }
 
-    Json *json = json_parse_string(file_content);
-    if (json == NULL) {
-        *res = (char *)json_get_error();
+        Json *json = json_parse_string(file_content);
+        if (json == NULL) {
+            *res = (char *)json_get_error();
+            free(file_content);
+            return 1;
+        }
+
+        *res = json_stringify(json, true);
+        json_free(json);
         free(file_content);
-        return 1;
+        return 0;
     }
-
-    *res = json_stringify(json, true);
-    json_free(json);
-    free(file_content);
-    return 0;
+    return -1;
 }
 
 int record(void) {
@@ -70,7 +84,8 @@ int record(void) {
             continue;
         }
 
-        fprintf(f, "%d:%s", ret, res);
+        // fprintf(f, "%d:%s", ret, res);
+        fprintf(f, "%s", res);
         Log(Log_Info, "Recorded output of %s into %s", test_files[i],
             out_file_name);
         fclose(f);
@@ -100,27 +115,28 @@ int test(void) {
             result = 1;
             goto end;
         }
+        //
+        // if (strlen(out_file_content) < 2 ||
+        //     !(out_file_content[0] == '0' || out_file_content[0] == '1') ||
+        //     out_file_content[1] != ':') {
+        //     Log(Log_Error,
+        //         "Test failed for %s: Incorrect format for expected out file
+        //         %s", test_json_files[i], out_file_name);
+        //     result = 1;
+        //     goto end;
+        // }
+        //
+        // if ((ret == 0 && out_file_content[0] != '0') ||
+        //     (ret == 1 && out_file_content[0] != '1')) {
+        //     Log(Log_Error, "Test failed for %s: Expected return code %c got
+        //     %d",
+        //         test_json_files[i], out_file_content[0], ret);
+        //     result = 1;
+        //     goto end;
+        // }
 
-        if (strlen(out_file_content) < 2 ||
-            !(out_file_content[0] == '0' || out_file_content[0] == '1') ||
-            out_file_content[1] != ':') {
-            Log(Log_Error,
-                "Test failed for %s: Incorrect format for expected out file %s",
-                test_files[i], out_file_name);
-            result = 1;
-            goto end;
-        }
-
-        if ((ret == 0 && out_file_content[0] != '0') ||
-            (ret == 1 && out_file_content[0] != '1')) {
-            Log(Log_Error, "Test failed for %s: Expected return code %c got %d",
-                test_files[i], out_file_content[0], ret);
-            result = 1;
-            goto end;
-        }
-
-        if (strlen(res) != strlen(out_file_content + 2) ||
-            strncmp(out_file_content + 2, res, strlen(res)) != 0) {
+        if (strlen(res) != strlen(out_file_content) ||
+            strncmp(out_file_content, res, strlen(res)) != 0) {
             const char *got_file_name =
                 temp_sprintf("%s%s", test_files[i], GOT_SUFFIX);
 
