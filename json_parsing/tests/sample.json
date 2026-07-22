@@ -17,7 +17,8 @@
     "negativeFloat": -0.000123,
     "scientificSmall": 6.022e23,
     "scientificNegative": -9.81e-3,
-    "largeInt": 9223372036854775807
+    "largeInt": 9223372036854775807,
+    "smallInt": -9223372036854775808
   },
   "booleans": {
     "yes": true,

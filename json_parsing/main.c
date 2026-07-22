@@ -57,4 +57,7 @@ int main(int argc, char **argv) {
 }
 // TODO:in sample.json the float comes as 3.141593 and not as 3.141592653589793,
 // and having "smallInt": -9223372036854775808 makes it fail with
-// :21:37: expected json value, got unknown token '-'
+// numbers.largeInt	9223372036854775807	9.2233720368547758e+18 Not
+// exactly the same. IEEE-754 double cannot exactly represent
+// 9223372036854775807, so the scientific notation represents the nearest
+// floating-point value, not the exact integer.

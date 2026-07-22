@@ -121,6 +121,8 @@ const Json_Value *json_array_at(const Json *arr, size_t i);
 
 #ifdef JSON_IMPLEMENTATION
 #include <errno.h>
+#include <limits.h>
+#include <math.h>
 
 enum Token_Kind {
     TOKEN_OPENCURLY,
@@ -336,10 +338,6 @@ static void json__lexer_get_token(Lexer *l) {
                 bool is_negative = false;
                 bool eE_present = false;
                 const char *orig_start = l->curr;
-                if (json__lexer_get_expect_bytes(l, "-", 1)) {
-                    is_negative = true;
-                } else if (json__lexer_get_expect_bytes(l, "+", 1)) {
-                }
                 const char *start = l->curr;
                 chr = json__lexer_peek_char(l);
 
@@ -367,17 +365,19 @@ static void json__lexer_get_token(Lexer *l) {
                 }
                 json__lexer_get_char(l);
 
+                errno = 0;
                 if (is_real || eE_present) {
                     l->kind = TOKEN_REAL;
-                    errno = 0;
                     char *end;
                     double realval = strtod(start, &end);
                     if (errno == ERANGE) {
-                        json__set_lerror_raw(l,
-                                             "invalid number: double overflow");
-                        // FIX: for all invalid in this case, no value set, and
-                        // error reported as unknown not as invalid
-                        // integer/decimal overflow etc
+                        if (realval == HUGE_VAL || realval == -HUGE_VAL) {
+                            json__set_lerror_raw(
+                                l, "invalid number: double overflow");
+                        } else {
+                            json__set_lerror_raw(
+                                l, "invalid number: double underflow");
+                        }
                         l->kind = TOKEN_UNKNOWN;
                         l->json_data.data.stringval =
                             (String){.start = orig_start, .len = 1};
@@ -397,12 +397,16 @@ static void json__lexer_get_token(Lexer *l) {
                         realval * (is_negative ? -1 : 1);
                 } else {
                     l->kind = TOKEN_INTEGER;
-                    errno = 0;
                     char *end;
                     long intval = strtol(start, &end, 10);
                     if (errno == ERANGE) {
-                        json__set_lerror_raw(
-                            l, "invalid number: integer overflow");
+                        if (intval == LONG_MIN) {
+                            json__set_lerror_raw(
+                                l, "invalid number: integer underflow");
+                        } else {
+                            json__set_lerror_raw(
+                                l, "invalid number: integer overflow");
+                        }
                         l->kind = TOKEN_UNKNOWN;
                         l->json_data.data.stringval =
                             (String){.start = orig_start, .len = 1};
@@ -586,9 +590,9 @@ static bool json__parse_object(Lexer *l, Json **res, bool toplevel) {
                     }
                     break;
                 case TOKEN_UNKNOWN:
-                    json__set_lerror(
-                        l, "expected json value, got unknown token '%s'",
-                        json__lexer_print_token(l));
+                    // json__set_lerror(
+                    //     l, "expected json value, got unknown token '%s'",
+                    //     json__lexer_print_token(l));
                     goto fail;
                 default:
                     json__set_lerror(l, "expected json value, got '%s'",
