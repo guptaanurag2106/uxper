@@ -66,6 +66,14 @@ typedef struct Json {
 
 const char *json_get_error(void);
 
+// TODO: merge json and json_parse_file
+// TODO: copy over data to arena, so user can free it independent of json_free
+// TODO: possibly add versions json_parse_string_ref(references user memory, but
+// would still need to alloc more for say escaped string as cannot modify
+// user-data
+// or add json_parse_string_insitu, free to modify user-data
+// Parses a null-terminated JSON string. The returned Json owns its parsed data;
+// the input may be freed after this call. Free with json_free().
 Json *json_parse_string(const char *file_content);
 Json *json_parse_file(const char *file_name);
 
@@ -92,13 +100,17 @@ bool json_is_array(const Json *node);
 
 const char *json_key(const Json *member);
 
-const Json *json_next(const Json *member);
-
+// TODO: should json_first, json_next return NULL on non JSON_OBJ
 const Json *json_first(const Json *obj);
+
+const Json *json_next(const Json *member);
 
 const Json *json_value_find(const Json_Value *obj, const char *key);
 
 // TODO: find by case sensitive and insensitive
+// TODO: key can be escaped as well
+// {"a\"b": 1}
+// if you search: json_find(obj, "a\"b")
 const Json *json_find(const Json *obj, const char *key);
 
 long json_integer(const Json *node);
@@ -107,7 +119,9 @@ double json_real(const Json *node);
 
 double json_number(const Json *node);
 
-char *json_string(const Json *node);
+// TODO: add versions for json-stringview (no need for
+// json__arena_string_to_charp(node->arena, node->json_data.data.stringval)
+char *json_cstring(const Json *node);
 
 bool json_bool(const Json *node);
 
@@ -202,6 +216,7 @@ static char json_error[JSON_ERROR_STR_SIZE] = "";
 const char *json_get_error(void) { return json_error; }
 
 static char *json__arena_string_to_charp(Arena *arena, String data) {
+    if (data.start == NULL) return NULL;
     char *buf = arena_alloc_array(arena, char, data.len + 1);
     if (buf == NULL) return NULL;
     memcpy(buf, data.start, data.len);
@@ -299,6 +314,8 @@ static void json__lexer_get_token(Lexer *l) {
             l->kind = TOKEN_STRING;
             char c = json__lexer_get_char(l);
             while (true) {
+                // TODO: fix escaping
+                // TODO: fix \uXXXX
                 if (c == '\\') {
                     c = json__lexer_get_char(l);
                     len++;
@@ -341,6 +358,8 @@ static void json__lexer_get_token(Lexer *l) {
                 const char *start = l->curr;
                 chr = json__lexer_peek_char(l);
 
+                // TODO: i am iterating twice over the number (this and
+                // strtod/l)
                 while (true) {
                     if (chr >= '0' && chr <= '9') {
                         json__lexer_get_char(l);
@@ -366,7 +385,8 @@ static void json__lexer_get_token(Lexer *l) {
                 json__lexer_get_char(l);
 
                 errno = 0;
-                if (is_real || eE_present) {
+                if (is_real || eE_present) {  // TODO: is 8.9e10 real or
+                                              // integer?
                     l->kind = TOKEN_REAL;
                     char *end;
                     double realval = strtod(start, &end);
@@ -636,7 +656,6 @@ static inline size_t json__max_size(size_t a, size_t b) {
     return a > b ? a : b;
 }
 
-// TODO: merge json and json_parse_file
 Json *json_parse_string(const char *file_content) {
     if (file_content == NULL) {
         json__set_error_raw("json: file_content is null");
@@ -923,6 +942,7 @@ void json_free(Json *json) {
         Arena *arena = json->arena;
         arena_destroy(arena);
         free(arena);
+        json = NULL;
     }
 }
 
@@ -951,14 +971,14 @@ const char *json_key(const Json *member) {
     return json__arena_string_to_charp(member->arena, member->key);
 }
 
-const Json *json_next(const Json *member) {
-    if (member == NULL) return NULL;
-    return member->next;
-}
-
 const Json *json_first(const Json *obj) {
     if (obj == NULL) return NULL;
     return obj->json_data.data.jsonval;
+}
+
+const Json *json_next(const Json *member) {
+    if (member == NULL) return NULL;
+    return member->next;
 }
 
 const Json *json_value_find(const Json_Value *value, const char *key) {
@@ -994,7 +1014,7 @@ double json_number(const Json *node) {
     return json_real(node);
 }
 
-char *json_string(const Json *node) {
+char *json_cstring(const Json *node) {
     if (node == NULL) return NULL;
     return json__arena_string_to_charp(node->arena,
                                        node->json_data.data.stringval);

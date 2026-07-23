@@ -1,0 +1,213 @@
+
+=== parse sample.json ===
+json_parse_file: OK
+
+=== json_kind on top-level and nested ===
+json_kind(root): JSON_OBJ
+json_kind(meta): JSON_OBJ
+json_kind(version): JSON_STRING
+json_kind(valid): JSON_BOOL
+json_kind(nullValue): JSON_NULL
+json_kind(zero): JSON_INTEGER
+json_kind(float): JSON_REAL
+json_kind(empty array): JSON_ARRAY
+
+=== json_is_* checks ===
+json_is_obj(root): 1
+json_is_array(root): 0
+json_is_string(version): 1
+json_is_integer(zero): 1
+json_is_real(flt): 1
+json_is_number(zero): 1
+json_is_number(flt): 1
+json_is_bool(valid): 1
+json_is_null(null_val): 1
+json_is_array(empty_arr): 1
+
+=== json_key ===
+json_key(meta): meta
+json_key(version): version
+json_key(root): (null)
+
+=== json_find positive ===
+json_find(root, "numbers"): found
+json_find(numbers, "positive"): found
+json_find(root, "booleans"): found
+json_find(root, "arrays"): found
+json_find(root, "final"): found
+
+=== json_find negative / missing keys ===
+json_find(root, "nonexistent"): not found
+json_find(root, ""): not found
+json_find(root, "Meta"): not found
+json_find(NULL, "meta"): not found
+
+=== json_find on non-object ===
+json_find(version, "x"): not found
+
+=== json_value_find ===
+json_value_find(&root->json_data, "meta"): found
+json_value_find(NULL, "meta"): not found
+json_value_find(root_val, NULL): not found
+
+=== json_integer ===
+json_integer(zero): 0
+json_integer(positive): 42
+json_integer(negative): -42
+json_integer(largeInt): 9223372036854775807
+json_integer(smallInt): -9223372036854775808
+json_integer(NULL): 0
+
+=== json_real ===
+json_real(flt): 3.14159
+json_real(negativeFloat): -0.000123
+json_real(scientificSmall): 6.022e+23
+json_real(scientificNegative): -0.00981
+json_real(NULL): 0
+
+=== json_number ===
+json_number(zero): 0
+json_number(positive): 42
+json_number(flt): 3.14159
+json_number(neg_flt): -0.000123
+json_number(sci_small): 6.022e+23
+json_number(NULL): 0
+
+=== json_cstring ===
+json_cstring(version): 1.0.0
+json_cstring(escapedString): Quotes: \"Hello\", Backslash: \\\\, Slash: \\/, Newline:\\nTab:\\tCarriage:\\rFormFeed:\\fBackspace:\\b
+json_cstring(emptyString): ""
+json_cstring(unicode): こんにちは 🌍 Привет مرحبا 😀
+json_cstring(NULL): NULL
+json_cstring(zero) [integer]: NULL
+
+=== json_bool ===
+json_bool(valid): 1
+json_bool(yes): 1
+json_bool(no): 0
+json_bool(NULL): 0
+
+=== json_array_size ===
+json_array_size(empty): 0
+json_array_size(numbers): 6
+json_array_size(strings): 6
+json_array_size(mixed): 7
+json_array_size(objectArray): 3
+json_array_size(matrix): 3
+json_array_size(records): 2
+json_array_size(NULL): 0
+json_array_size(root) [object]: 0
+
+=== json_array_at ===
+json_array_at(numbers, 0) data_kind: JSON_INTEGER
+json_array_at(numbers, 1) data_kind: JSON_INTEGER
+json_array_at(numbers, 2) data_kind: JSON_REAL
+json_array_at(numbers, 100): NULL
+json_array_at(NULL, 0): NULL
+json_array_at(root, 0) [object]: NULL
+
+=== json_array_at values (numbers) ===
+json_array_at(numbers, 0) kind=JSON_INTEGER
+json_array_at(numbers, 1) kind=JSON_INTEGER
+json_array_at(numbers, 2) kind=JSON_REAL
+json_array_at(numbers, 3) kind=JSON_REAL
+json_array_at(numbers, 4) kind=JSON_REAL
+json_array_at(numbers, 5) kind=JSON_REAL
+
+=== json_first / json_next on object ===
+member[0] key=meta
+member[1] key=numbers
+member[2] key=booleans
+member[3] key=arrays
+member[4] key=objectArray
+member[5] key=nested
+member[6] key=matrix
+member[7] key=records
+member[8] key=special
+member[9] key=config
+member[10] key=events
+member[11] key=edgeCases
+member[12] key=final
+total members: 13
+
+=== json_first / json_next on meta ===
+meta.member[0] key=version kind=JSON_STRING
+meta.member[1] key=generatedAt kind=JSON_STRING
+meta.member[2] key=valid kind=JSON_BOOL
+meta.member[3] key=description kind=JSON_STRING
+meta.member[4] key=unicode kind=JSON_STRING
+meta.member[5] key=escapedString kind=JSON_STRING
+meta.member[6] key=emptyString kind=JSON_STRING
+meta.member[7] key=nullValue kind=JSON_NULL
+
+=== json_first edge cases ===
+json_first(NULL): NULL
+json_first(version) [string]: non-null UNKNOWN
+json_first(empty_arr) [array]: NULL
+
+=== json_next edge cases ===
+json_next(NULL): NULL
+
+=== deep nesting traversal ===
+nested.level1.level2.level3.message: Deep nesting
+nested.level1.level2.level3.list kind: JSON_ARRAY
+nested.level1.level2.level3.list size: 1
+
+=== matrix traversal ===
+matrix size: 3
+matrix[0] size=3 1 2 3
+matrix[1] size=3 4 5 6
+matrix[2] size=3 7 8 9
+
+=== objectArray traversal ===
+objectArray[0]: id=1 name=Alice active=1 score=99.5 roles_size = 2 not_found = (null)
+objectArray[1]: id=2 name=Bob active=0 score=-10.75 roles_size = 0 not_found = (null)
+objectArray[2]: id=3 name=Charlie active=1 score=120000 roles_size = 1 not_found = (null)
+
+=== mixed array element kinds ===
+mixed[0] kind=JSON_NULL
+mixed[1] kind=JSON_BOOL
+mixed[2] kind=JSON_BOOL
+mixed[3] kind=JSON_INTEGER
+mixed[4] kind=JSON_STRING
+mixed[5] kind=JSON_OBJ
+mixed[6] kind=JSON_ARRAY
+
+=== records traversal ===
+records[0] key=A value.kind=JSON_OBJ
+  value.enabled=1 value.threshold=0.95
+records[1] key=B value.kind=JSON_OBJ
+  value.enabled=0 value.threshold=-150
+
+=== config deep query ===
+config.retry: 3
+config.timeoutMs: 1500
+config.features.logging: 1
+config.features.metrics: 0
+config.features.cache.enabled: 1
+config.features.cache.ttl: 3600
+
+=== events traversal ===
+events[0] type=CREATE timestamp=2026-01-01T00:00:00Z payload.kind=JSON_OBJ
+events[1] type=UPDATE timestamp=2026-01-02T12:30:45Z payload.kind=JSON_OBJ
+events[2] type=DELETE timestamp=2026-01-03T23:59:59Z payload.kind=JSON_NULL
+
+=== edgeCases ===
+edgeCases.emptyObject kind: JSON_OBJ
+edgeCases.emptyObject first: NULL
+edgeCases.singleItemArray size: 1
+edgeCases.repeated size: 3
+edgeCases.repeated[0].v: 1
+edgeCases.repeated[1].v: 1
+edgeCases.repeated[2].v: 1
+
+=== special strings ===
+special.jsonLike: {\"fake\":true}
+special.xmlLike: <root><child/></root>
+special.sqlLike: SELECT * FROM users WHERE id = 1;
+special.path: C:\\\\Program Files\\\\Test
+special.url: https://example.com/api?q=test&x=1
+special.email: user@example.com
+
+=== json_kind on NULL and bad inputs ===
+json_kind(NULL): JSON_NONE

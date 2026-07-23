@@ -30,17 +30,19 @@ const char *test_files[] = {
     TEST_FOLDER "sample.json",
     TEST_FOLDER "test_getters.c",
     TEST_FOLDER "test_creation.c",
+    TEST_FOLDER "test_embedded.c",
 };
 
 int run(const char *file_name, char **res) {
     // checking if ends with c then run as c file
     if (file_name[strlen(file_name) - 1] == 'c') {
         char *command = temp_sprintf(
-            "cc -I. -I../utils/ -o /tmp/test.out %s && /tmp/test.out > "
+            "cc -I. -I../utils/ -o test.out %s && stdbuf -o0 ./test.out > "
             "/tmp/test_res 2>&1",
             file_name);
         system(command);
         *res = read_entire_file("/tmp/test_res");
+        if (*res == NULL) return -1;
         return 0;
     } else {
         char *file_content = read_entire_file(file_name);
@@ -63,106 +65,113 @@ int run(const char *file_name, char **res) {
     return -1;
 }
 
-int record(void) {
+int record(const char *filename) {
+    int result = 0;
+    char *res = NULL;
+    int ret = run(filename, &res);
+    if (ret == -1) {
+        result = 1;
+    }
+
+    const char *out_file_name = temp_sprintf("%s%s", filename, EXPECTED_SUFFIX);
+
+    FILE *f = fopen(out_file_name, "w");
+    if (f == NULL) {
+        Log(Log_Error, "Cannot open out file %s: %s", out_file_name,
+            strerror(errno));
+        result = 1;
+    }
+
+    // fprintf(f, "%d:%s", ret, res);
+    fprintf(f, "%s", res);
+    Log(Log_Info, "Recorded output of %s into %s", filename, out_file_name);
+    fclose(f);
+    if (ret == 0) free(res);
+    return result;
+}
+
+int recordAll(void) {
     int result = 0;
     for (size_t i = 0; i < ARRAY_LENGTH(test_files); i++) {
-        char *res = NULL;
-        int ret = run(test_files[i], &res);
-        if (ret == -1) {
-            result = 1;
-            continue;
-        }
-
-        const char *out_file_name =
-            temp_sprintf("%s%s", test_files[i], EXPECTED_SUFFIX);
-
-        FILE *f = fopen(out_file_name, "w");
-        if (f == NULL) {
-            Log(Log_Error, "Cannot open out file %s: %s", out_file_name,
-                strerror(errno));
-            result = 1;
-            continue;
-        }
-
-        // fprintf(f, "%d:%s", ret, res);
-        fprintf(f, "%s", res);
-        Log(Log_Info, "Recorded output of %s into %s", test_files[i],
-            out_file_name);
-        fclose(f);
-        if (ret == 0) free(res);
+        int res = record(test_files[i]);
+        if (res == 1) result = 1;
     }
     return result;
 }
 
-int test(void) {
+int test(const char *filename) {
+    int result = 0;
+    char *res = NULL;
+    int ret = run(filename, &res);
+    if (ret == -1) {
+        result = 1;
+    }
+
+    const char *out_file_name = temp_sprintf("%s%s", filename, EXPECTED_SUFFIX);
+
+    char *out_file_content = read_entire_file(out_file_name);
+    if (out_file_content == NULL) {
+        Log(Log_Error, "Test failed for %s: Cannot read expected out file %s",
+            filename, out_file_name);
+        result = 1;
+        goto end;
+    }
+    //
+    // if (strlen(out_file_content) < 2 ||
+    //     !(out_file_content[0] == '0' || out_file_content[0] == '1') ||
+    //     out_file_content[1] != ':') {
+    //     Log(Log_Error,
+    //         "Test failed for %s: Incorrect format for expected out file
+    //         %s", test_json_files[i], out_file_name);
+    //     result = 1;
+    //     goto end;
+    // }
+    //
+    // if ((ret == 0 && out_file_content[0] != '0') ||
+    //     (ret == 1 && out_file_content[0] != '1')) {
+    //     Log(Log_Error, "Test failed for %s: Expected return code %c got
+    //     %d",
+    //         test_json_files[i], out_file_content[0], ret);
+    //     result = 1;
+    //     goto end;
+    // }
+
+    if (strlen(res) != strlen(out_file_content) ||
+        strncmp(out_file_content, res, strlen(res)) != 0) {
+        const char *got_file_name = temp_sprintf("%s%s", filename, GOT_SUFFIX);
+
+        FILE *f = fopen(got_file_name, "w");
+        if (f == NULL) {
+            Log(Log_Error, "Cannot open received output file %s: %s",
+                got_file_name, strerror(errno));
+            result = 1;
+            goto end;
+        }
+
+        fprintf(f, "%s", res);
+        fclose(f);
+        Log(Log_Error,
+            "Test failed for %s: Mismatched output, saving received output "
+            "as %s for manual comparison",
+            filename, got_file_name);
+        result = 1;
+        goto end;
+    }
+
+    Log(Log_Info, "Test successfull for %s", filename);
+
+end:
+    if (ret == 0) free(res);
+    free(out_file_content);
+
+    return result;
+}
+
+int testAll(void) {
     int result = 0;
     for (size_t i = 0; i < ARRAY_LENGTH(test_files); i++) {
-        char *res = NULL;
-        int ret = run(test_files[i], &res);
-        if (ret == -1) {
-            result = 1;
-            continue;
-        }
-
-        const char *out_file_name =
-            temp_sprintf("%s%s", test_files[i], EXPECTED_SUFFIX);
-
-        char *out_file_content = read_entire_file(out_file_name);
-        if (out_file_content == NULL) {
-            Log(Log_Error,
-                "Test failed for %s: Cannot read expected out file %s",
-                test_files[i], out_file_name);
-            result = 1;
-            goto end;
-        }
-        //
-        // if (strlen(out_file_content) < 2 ||
-        //     !(out_file_content[0] == '0' || out_file_content[0] == '1') ||
-        //     out_file_content[1] != ':') {
-        //     Log(Log_Error,
-        //         "Test failed for %s: Incorrect format for expected out file
-        //         %s", test_json_files[i], out_file_name);
-        //     result = 1;
-        //     goto end;
-        // }
-        //
-        // if ((ret == 0 && out_file_content[0] != '0') ||
-        //     (ret == 1 && out_file_content[0] != '1')) {
-        //     Log(Log_Error, "Test failed for %s: Expected return code %c got
-        //     %d",
-        //         test_json_files[i], out_file_content[0], ret);
-        //     result = 1;
-        //     goto end;
-        // }
-
-        if (strlen(res) != strlen(out_file_content) ||
-            strncmp(out_file_content, res, strlen(res)) != 0) {
-            const char *got_file_name =
-                temp_sprintf("%s%s", test_files[i], GOT_SUFFIX);
-
-            FILE *f = fopen(got_file_name, "w");
-            if (f == NULL) {
-                Log(Log_Error, "Cannot open received output file %s: %s",
-                    got_file_name, strerror(errno));
-                result = 1;
-                goto end;
-            }
-
-            fprintf(f, "%s", res);
-            fclose(f);
-            Log(Log_Error,
-                "Test failed for %s: Mismatched output, saving received output "
-                "as %s for manual comparison",
-                test_files[i], got_file_name);
-            result = 1;
-            goto end;
-        }
-
-        Log(Log_Info, "Test successfull for %s", test_files[i]);
-
-    end:
-        if (ret == 0) free(res);
-        free(out_file_content);
+        int res = test(test_files[i]);
+        if (res == 1) result = 1;
     }
     return result;
 }
@@ -176,9 +185,19 @@ int main(int argc, char **argv) {
     }
 
     const char *command = shift(&argc, &argv);
+    char *file_name = NULL;
+    if (argc != 0) {
+        file_name = shift(&argc, &argv);
+    }
     if (strncmp(command, "record", 6) == 0) {
         Log(Log_Info, "Recording current behaviour");
-        int result = record();
+
+        int result = -1;
+        if (file_name) {
+            result = record(file_name);
+        } else {
+            result = recordAll();
+        }
         if (result == 0) {
             Log(Log_Info, "Recorded current behaviour successfully");
         } else {
@@ -187,7 +206,12 @@ int main(int argc, char **argv) {
         }
     } else if (strncmp(command, "test", 4) == 0) {
         Log(Log_Info, "Testing current behaviour");
-        int result = test();
+        int result = -1;
+        if (file_name) {
+            result = test(file_name);
+        } else {
+            result = testAll();
+        }
         if (result == 0) {
             Log(Log_Info, "Tested all files successfully");
         } else {
