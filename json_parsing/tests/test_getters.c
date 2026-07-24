@@ -5,6 +5,12 @@
 #define ARENA_IMPLEMENTATION
 #include "json.h"
 
+static void print_json_error(const json_Error *err) {
+    if (err == NULL) return;
+    printf("%s:%d:%d: %s\n", err->source, err->line, err->column, err->message);
+    return;
+}
+
 static const char *kind_str(enum Node_Kind k) {
     switch (k) {
         case JSON_NONE:
@@ -32,10 +38,11 @@ static const char *kind_str(enum Node_Kind k) {
 
 int main(void) {
     SECTION("parse sample.json");
-    Json *root = json_parse_file("tests/sample.json");
+    json_Error err = {0};
+    Json *root = json_parse_file("tests/sample.json", &err);
     printf("json_parse_file: %s\n", root ? "OK" : "FAIL");
     if (!root) {
-        printf("json_get_error: %s\n", json_get_error());
+        print_json_error(&err);
         return 1;
     }
 
@@ -374,8 +381,9 @@ int main(void) {
            json_cstring(json_find(special, "jsonLike")));
     printf("special.xmlLike: %s\n",
            json_cstring(json_find(special, "xmlLike")));
-    printf("special.sqlLike: %s\n",
-           json_cstring(json_find(special, "sqlLike")));
+    String sqlLike = json_string_view(json_find(special, "sqlLike"));
+    printf("special.sqlLike: %.*s\n", (int)sqlLike.len, sqlLike.start);
+
     printf("special.path: %s\n", json_cstring(json_find(special, "path")));
     printf("special.url: %s\n", json_cstring(json_find(special, "url")));
     printf("special.email: %s\n", json_cstring(json_find(special, "email")));

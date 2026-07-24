@@ -26,11 +26,12 @@ int main(int argc, char **argv) {
     char *scene_file_content = read_entire_file(input_file);
     struct timeval start, end;
     gettimeofday(&start, NULL);
-    Json *json = json_parse_string(scene_file_content);
+    json_Error err = {0};
+    Json *json = json_parse_string(scene_file_content, &err);
     if (json == NULL) {
-        printf("%s\n", json_get_error());
+        printf("%s:%d:%d: %s\n", err.source, err.line, err.column, err.message);
     } else {
-        json_dump(json, stdout, true);
+        json_dump(json, stdout, true, &err);
         gettimeofday(&end, NULL);
         json_free(json);
         printf("json.h time taken: %fms\n", timersub_ms(&end, &start));

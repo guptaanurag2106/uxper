@@ -10,8 +10,12 @@ ARENA_IMPLEMENTATION
 #define JSON_H
 
 #include <assert.h>
+#include <stdarg.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <string.h>
+
+#define JSON_ERROR_STR_SIZE 500
 
 #include "arena.h"
 
@@ -41,8 +45,7 @@ typedef struct Json_Arr_Data {
 
 union Json_Data {
     Json_Arr_Data arrval;
-    struct Json
-        *jsonval;  // TODO: jsonval or objval? confusing terms (json_is_obj)
+    struct Json *objval;
     long intval;
     double realval;
     String stringval;
@@ -64,27 +67,35 @@ typedef struct Json {
     bool is_toplevel;
 } Json;
 
-const char *json_get_error(void);
+typedef struct {
+    const char *source;
+    int line;
+    int column;
+    size_t byte_offset;
+    const char *subsystem;  // "parse" or "dump"
+    char message[JSON_ERROR_STR_SIZE];
+} json_Error;
 
 // TODO: merge json and json_parse_file
-// TODO: copy over data to arena, so user can free it independent of json_free
 // TODO: possibly add versions json_parse_string_ref(references user memory, but
 // would still need to alloc more for say escaped string as cannot modify
 // user-data
 // or add json_parse_string_insitu, free to modify user-data
+
 // Parses a null-terminated JSON string. The returned Json owns its parsed data;
 // the input may be freed after this call. Free with json_free().
-Json *json_parse_string(const char *file_content);
-Json *json_parse_file(const char *file_name);
+Json *json_parse_string(const char *file_content, json_Error *err);
+// Parses a file (if exists). The returned Json owns its parsed data;
+// Free with json_free().
+Json *json_parse_file(const char *file_name, json_Error *err);
 
-char *json_stringify(Json *json, bool minified);
+char *json_stringify(Json *json, bool minified, json_Error *err);
 
-void json_dump(Json *json, FILE *f, bool minified);
+void json_dump(Json *json, FILE *f, bool minified, json_Error *err);
 
 void json_free(Json *json);
 
 // Traverse, query
-
 enum Node_Kind json_kind(const Json *node);
 
 bool json_is(const Json *node, enum Node_Kind kind);
@@ -100,7 +111,6 @@ bool json_is_array(const Json *node);
 
 const char *json_key(const Json *member);
 
-// TODO: should json_first, json_next return NULL on non JSON_OBJ
 const Json *json_first(const Json *obj);
 
 const Json *json_next(const Json *member);
@@ -119,8 +129,8 @@ double json_real(const Json *node);
 
 double json_number(const Json *node);
 
-// TODO: add versions for json-stringview (no need for
-// json__arena_string_to_charp(node->arena, node->json_data.data.stringval)
+String json_string_view(const Json *node);
+
 char *json_cstring(const Json *node);
 
 bool json_bool(const Json *node);
@@ -157,7 +167,9 @@ enum Token_Kind {
 typedef struct Lexer {
     Json_Value json_data;
     Arena *arena;
+    const char *start;
     const char *path;
+    json_Error *err;
 
     const char *curr;
     const char *end;
@@ -168,53 +180,55 @@ typedef struct Lexer {
     int line_offset;
 } Lexer;
 
-#define JSON_ERROR_STR_SIZE 500
-static char json_error[JSON_ERROR_STR_SIZE] = "";
+static inline void json__clear_error(json_Error *err, const char *source,
+                                     const char *subsystem) {
+    if (err == NULL) return;
+    err->source = source != NULL ? source : "";
+    err->line = 0;
+    err->column = 0;
+    err->byte_offset = 0;
+    err->subsystem = subsystem != NULL ? subsystem : "";
+    err->message[0] = '\0';
+}
 
-// TODO:some error say json:, some say json_dump:, some say just expected ...
-#define json__set_error_raw(msg)              \
-    do {                                      \
-        memcpy(json_error, msg, strlen(msg)); \
-        json_error[strlen(msg)] = '\0';       \
-    } while (0)
+static inline void json__set_error_impl(json_Error *err, const char *source,
+                                        int line, int column,
+                                        size_t byte_offset,
+                                        const char *subsystem,
+                                        const char *format, ...) {
+    if (err == NULL) return;
+    err->source = source != NULL ? source : "";
+    err->line = line;
+    err->column = column;
+    err->byte_offset = byte_offset;
+    err->subsystem = subsystem != NULL ? subsystem : "";
 
-#define json__set_error(format, args)                                    \
-    do {                                                                 \
-        int n = snprintf(json_error, JSON_ERROR_STR_SIZE, format, args); \
-        if (n < 0 || n >= JSON_ERROR_STR_SIZE) {                         \
-            fprintf(stderr, "Error message length exceeded %d bytes\n",  \
-                    JSON_ERROR_STR_SIZE);                                \
-            break;                                                       \
-        }                                                                \
-        json_error[n] = '\0';                                            \
-    } while (0)
+    va_list args;
+    va_start(args, format);
+    vsnprintf(err->message, JSON_ERROR_STR_SIZE, format, args);
+    va_end(args);
+    err->message[JSON_ERROR_STR_SIZE - 1] = '\0';
+}
+
+#define json__set_error_raw(err, msg) \
+    json__set_error_impl((err), "", 0, 0, 0, "", "%s", (msg))
+
+#define json__set_error(err, format, ...) \
+    json__set_error_impl((err), "", 0, 0, 0, "", (format), __VA_ARGS__)
 
 // FIX: currently all error reporting points(line_offset) to end of token not
 // start
-#define json__set_lerror_raw(l, str)                                        \
-    do {                                                                    \
-        int n = snprintf(json_error, JSON_ERROR_STR_SIZE, "%s:%d:%d: " str, \
-                         l->path, l->line_number, l->line_offset);          \
-        if (n < 0 || n >= JSON_ERROR_STR_SIZE) {                            \
-            fprintf(stderr, "Error message length exceeded %d bytes\n",     \
-                    JSON_ERROR_STR_SIZE);                                   \
-        }                                                                   \
-        json_error[n] = '\0';                                               \
-    } while (0)
+#define json__set_lerror_raw(l, str)                                         \
+    json__set_error_impl((l)->err, (l)->path, (l)->line_number,              \
+                         (l)->line_offset, (size_t)((l)->curr - (l)->start), \
+                         "parse", "%s", (str))
 
-#define json__set_lerror(l, format, args)                                      \
-    do {                                                                       \
-        int n = snprintf(json_error, JSON_ERROR_STR_SIZE, "%s:%d:%d: " format, \
-                         l->path, l->line_number, l->line_offset, args);       \
-        if (n < 0 || n >= JSON_ERROR_STR_SIZE) {                               \
-            fprintf(stderr, "Error message length exceeded %d bytes\n",        \
-                    JSON_ERROR_STR_SIZE);                                      \
-        }                                                                      \
-        json_error[n] = '\0';                                                  \
-    } while (0)
+#define json__set_lerror(l, format, ...)                                     \
+    json__set_error_impl((l)->err, (l)->path, (l)->line_number,              \
+                         (l)->line_offset, (size_t)((l)->curr - (l)->start), \
+                         "parse", (format), __VA_ARGS__)
 
-const char *json_get_error(void) { return json_error; }
-
+// TODO: should it malloc and not arena_alloc?
 static char *json__arena_string_to_charp(Arena *arena, String data) {
     if (data.start == NULL) return NULL;
     char *buf = arena_alloc_array(arena, char, data.len + 1);
@@ -554,7 +568,7 @@ static bool json__put_data(Json *json, Lexer *l) {
             return true;
         case TOKEN_OPENCURLY:
             json->json_data.data_kind = JSON_OBJ;
-            if (!json__parse_object(l, &json->json_data.data.jsonval, false)) {
+            if (!json__parse_object(l, &json->json_data.data.objval, false)) {
                 return false;
             }
             assert(l->kind == TOKEN_CLOSECURLY);
@@ -576,6 +590,7 @@ static bool json__parse_object(Lexer *l, Json **res, bool toplevel) {
     Json *json = arena_alloc_struct_zeroed(l->arena, Json);
     if (json == NULL) {
         json__set_lerror_raw(l, "out of memory");
+        goto fail;
     }
     json->arena = l->arena;
     if (toplevel) {
@@ -656,32 +671,46 @@ static inline size_t json__max_size(size_t a, size_t b) {
     return a > b ? a : b;
 }
 
-Json *json_parse_string(const char *file_content) {
+Json *json_parse_string(const char *file_content, json_Error *err) {
+    json__clear_error(err, "", "parse");
     if (file_content == NULL) {
-        json__set_error_raw("json: file_content is null");
+        json__set_error_impl(err, "", 0, 0, 0, "parse", "%s",
+                             "file_content is null");
         return NULL;
     }
+    // TODO: an extra iteration
     size_t file_size = strlen(file_content);
     if (file_size == 0) {
-        json__set_error_raw("json: file_content is empty");
+        json__set_error_raw(err, "json: file_content is empty");
         return NULL;
     }
 
     Arena *arena = malloc(sizeof(Arena));
     if (arena == NULL) {
-        json__set_error_raw("json: out of memory");
+        json__set_error_raw(err, "json: out of memory");
         return NULL;
     }
     const size_t arena_size = json__max_size(sizeof(Json) * 64, file_size * 15);
     if (arena_create(arena, arena_size) < 0) {
-        json__set_error_raw("json: out of memory");
+        json__set_error_raw(err, "json: out of memory");
         return NULL;
     }
 
+    char *data = arena_alloc_array(arena, char, (size_t)file_size + 1);
+    if (data == NULL) {
+        json__set_error_raw(err, "json: out of memory");
+        arena_destroy(arena);
+        free(arena);
+        return NULL;
+    }
+    memcpy(data, file_content, sizeof(char) * (file_size + 1));
+
     Lexer lexer = {.arena = arena,
-                   .end = file_content + file_size,
-                   .curr = file_content,
+                   .start = data,
+                   .end = data + file_size,
+                   .curr = data,
                    .path = "",
+                   .err = err,
                    .line_number = 1,
                    .line_offset = 1};
 
@@ -707,47 +736,53 @@ Json *json_parse_string(const char *file_content) {
     return json;
 }
 
-Json *json_parse_file(const char *file_name) {
+Json *json_parse_file(const char *file_name, json_Error *err) {
+    json__clear_error(err, file_name, "parse");
     if (file_name == NULL || strlen(file_name) == 0) {
-        json__set_error_raw("json: invalid file_name");
+        json__set_error_impl(err, file_name, 0, 0, 0, "parse", "%s",
+                             "invalid file_name");
         return NULL;
     }
+
     FILE *f = fopen(file_name, "r");
     if (f == NULL) {
-        json__set_error("json: could not open file '%s'", file_name);
+        json__set_error(err, "json: could not open file '%s'", file_name);
         return NULL;
     }
 
     if (fseek(f, 0, SEEK_END) < 0) {
         fclose(f);
-        json__set_error("json: could not seek file '%s'", file_name);
+        json__set_error(err, "json: could not seek file '%s'", file_name);
         return NULL;
     }
 
     long file_size = ftell(f);
     fseek(f, 0, SEEK_SET);
     if (file_size == 0) {
-        json__set_error("json: file %s is empty", file_name);
+        json__set_error(err, "json: file %s is empty", file_name);
+        fclose(f);
         return NULL;
     }
 
     Arena *arena = malloc(sizeof(Arena));
     if (arena == NULL) {
-        json__set_error_raw("json: out of memory");
+        json__set_error_raw(err, "json: out of memory");
         fclose(f);
         return NULL;
     }
     const size_t arena_size =
         json__max_size(sizeof(Json) * 64, (size_t)file_size * 15);
     if (arena_create(arena, arena_size) < 0) {
-        json__set_error_raw("json: out of memory");
+        json__set_error_raw(err, "json: out of memory");
         fclose(f);
         return NULL;
     }
 
     char *data = arena_alloc_array(arena, char, (size_t)file_size + 1);
     if (data == NULL) {
-        json__set_error_raw("json: out of memory");
+        json__set_error_raw(err, "json: out of memory");
+        arena_destroy(arena);
+        free(arena);
         fclose(f);
         return NULL;
     }
@@ -757,21 +792,27 @@ Json *json_parse_file(const char *file_name) {
     fclose(f);
 
     Lexer lexer = {.arena = arena,
+                   .start = data,
                    .end = data + bytes_read,
                    .curr = data,
                    .path = file_name,
+                   .err = err,
                    .line_number = 1,
                    .line_offset = 1};
 
     json__lexer_get_token(&lexer);
     Json *json = NULL;
     if (!json__parse_object(&lexer, &json, true) || json == NULL) {
+        arena_destroy(arena);
+        free(arena);
         return NULL;
     }
     json__lexer_get_token(&lexer);
     if (lexer.kind != TOKEN_END) {
         json__set_lerror((&lexer), "expected EOF, got '%s'",
                          json__lexer_print_token(&lexer));
+        arena_destroy(arena);
+        free(arena);
         return NULL;
     }
 
@@ -816,124 +857,142 @@ typedef struct {
     Json__String string;
 } Json__Writer;
 
-#define json__writer_write(writer, ...)                           \
-    do {                                                          \
-        if ((writer)->f != NULL) {                                \
-            fprintf((writer)->f, __VA_ARGS__);                    \
-        } else {                                                  \
-            json__string_write(&((writer)->string), __VA_ARGS__); \
-        }                                                         \
+#define json__writer_write(err, writer, ...)                                  \
+    do {                                                                      \
+        if ((writer)->f != NULL) {                                            \
+            int n = fprintf((writer)->f, __VA_ARGS__);                        \
+            if (n < 0) {                                                      \
+                json__set_error_impl((err), (err) ? (err)->source : "", 0, 0, \
+                                     0, "dump", "%s", "unable to write");     \
+            }                                                                 \
+        } else {                                                              \
+            json__string_write(&((writer)->string), __VA_ARGS__);             \
+        }                                                                     \
     } while (0)
 
 static void json__dump_impl(Json *json, Json__Writer *w, int indent_len,
-                            bool minified);
+                            bool minified, json_Error *err);
 static void json__dump_data(Json_Value *json_data, Json__Writer *w,
-                            int indent_len, bool minified) {
+                            int indent_len, bool minified, json_Error *err) {
     switch (json_data->data_kind) {
         case JSON_NONE:
             return;
         case JSON_OBJ:
             if (minified) {
-                json__writer_write(w, "{");
+                json__writer_write(err, w, "{");
             } else {
-                json__writer_write(w, "{\n");
+                json__writer_write(err, w, "{\n");
             }
             indent_len += 4;
-            json__dump_impl(json_data->data.jsonval, w, indent_len, minified);
+            json__dump_impl(json_data->data.objval, w, indent_len, minified,
+                            err);
             indent_len -= 4;
             if (!minified) {
                 for (int i = 0; i < indent_len; i++) {
-                    json__writer_write(w, " ");
+                    json__writer_write(err, w, " ");
                 }
             }
-            json__writer_write(w, "}");
+            json__writer_write(err, w, "}");
             break;
         case JSON_ARRAY:
-            json__writer_write(w, "[");
+            json__writer_write(err, w, "[");
             size_t len = json_data->data.arrval.size;
             for (size_t i = 0; i < len; i++) {
                 json__dump_data(&json_data->data.arrval.items[i], w, indent_len,
-                                minified);
+                                minified, err);
                 if (i != len - 1) {
                     if (minified)
-                        json__writer_write(w, ",");
+                        json__writer_write(err, w, ",");
                     else
-                        json__writer_write(w, ", ");
+                        json__writer_write(err, w, ", ");
                 }
             }
-            json__writer_write(w, "]");
+            json__writer_write(err, w, "]");
             break;
         case JSON_STRING:
-            json__writer_write(w, "\"%.*s\"",
+            json__writer_write(err, w, "\"%.*s\"",
                                (int)json_data->data.stringval.len,
                                json_data->data.stringval.start);
             break;
         case JSON_INTEGER:
-            json__writer_write(w, "%ld", json_data->data.intval);
+            json__writer_write(err, w, "%ld", json_data->data.intval);
             break;
         case JSON_REAL:
-            json__writer_write(w, "%lf", json_data->data.realval);
+            json__writer_write(err, w, "%lf", json_data->data.realval);
             break;
         case JSON_BOOL:
-            json__writer_write(w, "%s",
+            json__writer_write(err, w, "%s",
                                json_data->data.boolval ? "true" : "false");
             break;
         case JSON_NULL:
-            json__writer_write(w, "null");
+            json__writer_write(err, w, "null");
             break;
     }
 }
 
 static void json__dump_impl(Json *json, Json__Writer *w, int indent_len,
-                            bool minified) {
+                            bool minified, json_Error *err) {
     if (json == NULL) return;
 
     while (json != NULL) {
         if (!minified) {
             for (int i = 0; i < indent_len; i++) {
-                json__writer_write(w, " ");
+                json__writer_write(err, w, " ");
             }
         }
 
         if (!json->is_toplevel) {
             if (json->key.start == NULL || json->key.len == 0) {
-                json__set_error_raw("json_dump: null key encountered");
+                json__set_error_impl(err, err ? err->source : "", 0, 0, 0,
+                                     "dump", "%s", "null key encountered");
                 return;
             }
             if (minified) {
-                json__writer_write(w, "\"%.*s\":", (int)json->key.len,
+                json__writer_write(err, w, "\"%.*s\":", (int)json->key.len,
                                    json->key.start);
             } else {
-                json__writer_write(w, "\"%.*s\": ", (int)json->key.len,
+                json__writer_write(err, w, "\"%.*s\": ", (int)json->key.len,
                                    json->key.start);
             }
         }
 
-        json__dump_data(&json->json_data, w, indent_len, minified);
+        json__dump_data(&json->json_data, w, indent_len, minified, err);
         if (json->next != NULL) {
             if (minified)
-                json__writer_write(w, ",");
+                json__writer_write(err, w, ",");
             else
-                json__writer_write(w, ", ");
+                json__writer_write(err, w, ", ");
         }
         if (!minified) {
-            json__writer_write(w, "\n");
+            json__writer_write(err, w, "\n");
         }
 
         json = json->next;
     }
 }
 
-char *json_stringify(Json *json, bool minified) {
+char *json_stringify(Json *json, bool minified, json_Error *err) {
     Json__Writer writer = {.string = {0}};
-    json__dump_impl(json, &writer, 0, minified);
-    writer.string.items[writer.string.size] = 0;
+    if (json == NULL) {
+        json__set_error_impl(err, "", 0, 0, 0, "dump", "%s", "json is null");
+        return NULL;
+    }
+    json__clear_error(err, json->input_file, "dump");
+    json__dump_impl(json, &writer, 0, minified, err);
+    if (writer.string.items != NULL) {
+        writer.string.items[writer.string.size] = 0;
+    }
     return writer.string.items;
 }
 
-void json_dump(Json *json, FILE *f, bool minified) {
+void json_dump(Json *json, FILE *f, bool minified, json_Error *err) {
     Json__Writer writer = {.f = f};
-    json__dump_impl(json, &writer, 0, minified);
+    if (json == NULL) {
+        json__set_error_impl(err, "", 0, 0, 0, "dump", "%s", "json is null");
+        return;
+    }
+    json__clear_error(err, json->input_file, "dump");
+    json__dump_impl(json, &writer, 0, minified, err);
     if (minified) fprintf(f, "\n");
 }
 
@@ -972,11 +1031,13 @@ const char *json_key(const Json *member) {
 }
 
 const Json *json_first(const Json *obj) {
-    if (obj == NULL) return NULL;
-    return obj->json_data.data.jsonval;
+    if (json_kind(obj) != JSON_OBJ) return NULL;
+    return obj->json_data.data.objval;
 }
 
 const Json *json_next(const Json *member) {
+    // cannot do this as non-obj also have next members
+    // if (json_kind(member) != JSON_OBJ) return NULL;
     if (member == NULL) return NULL;
     return member->next;
 }
@@ -985,9 +1046,8 @@ const Json *json_value_find(const Json_Value *value, const char *key) {
     if (value == NULL || key == NULL || value->data_kind != JSON_OBJ)
         return NULL;
     size_t keylen = strlen(key);
-    for (const Json *it = value->data.jsonval; it != NULL; it = json_next(it)) {
-        if (it->key.start != NULL && keylen == it->key.len &&
-            strncmp(it->key.start, key, keylen) == 0)
+    for (const Json *it = value->data.objval; it != NULL; it = json_next(it)) {
+        if (keylen == it->key.len && strncmp(it->key.start, key, keylen) == 0)
             return it;
     }
     return NULL;
@@ -1012,6 +1072,11 @@ double json_number(const Json *node) {
     if (node == NULL) return 0.0;
     if (json_is_integer(node)) return (double)json_integer(node);
     return json_real(node);
+}
+
+String json_string_view(const Json *node) {
+    if (node == NULL) return (String){0};
+    return node->json_data.data.stringval;
 }
 
 char *json_cstring(const Json *node) {

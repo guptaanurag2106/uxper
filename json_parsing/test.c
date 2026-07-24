@@ -10,6 +10,12 @@
 #define UTILS_IMPLEMENTATION
 #include "utils.h"
 
+static char *format_json_error(const json_Error *err) {
+    if (err == NULL) return NULL;
+    return temp_sprintf("%s:%d:%d: %s", err->source, err->line, err->column,
+                        err->message);
+}
+
 #define TEST_FOLDER "tests/"
 #define EXPECTED_SUFFIX ".expected"
 #define GOT_SUFFIX ".got"
@@ -50,14 +56,22 @@ int run(const char *file_name, char **res) {
             return -1;
         }
 
-        Json *json = json_parse_string(file_content);
+        json_Error err = {0};
+        Json *json = json_parse_string(file_content, &err);
         if (json == NULL) {
-            *res = (char *)json_get_error();
+            *res = format_json_error(&err);
             free(file_content);
             return 1;
         }
 
-        *res = json_stringify(json, true);
+        json_Error dump_err = {0};
+        *res = json_stringify(json, true, &dump_err);
+        if (*res == NULL) {
+            *res = format_json_error(&dump_err);
+            json_free(json);
+            free(file_content);
+            return 1;
+        }
         json_free(json);
         free(file_content);
         return 0;
@@ -151,9 +165,9 @@ int test(const char *filename) {
         fprintf(f, "%s", res);
         fclose(f);
         Log(Log_Error,
-            "Test failed for %s: Mismatched output, saving received output "
-            "as %s for manual comparison",
-            filename, got_file_name);
+            "Test failed for %s: Mismatched output, run `diff %s %s` for "
+            "checking the difference",
+            filename, out_file_name, got_file_name);
         result = 1;
         goto end;
     }
@@ -203,6 +217,7 @@ int main(int argc, char **argv) {
         } else {
             Log(Log_Error,
                 "Error(s) recording current behaviour, please check logs");
+            return 1;
         }
     } else if (strncmp(command, "test", 4) == 0) {
         Log(Log_Info, "Testing current behaviour");
@@ -217,11 +232,12 @@ int main(int argc, char **argv) {
         } else {
             Log(Log_Error,
                 "Error(s) testing current behaviour, please check logs");
+            return 1;
         }
     } else {
         printf("Usage: %s [record|test]\n", prog_name);
         fprintf(stderr, "Unknown command '%s' provided\n", command);
-        exit(1);
+        return 1;
     }
 
     return 0;

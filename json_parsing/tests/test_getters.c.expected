@@ -142,7 +142,7 @@ meta.member[7] key=nullValue kind=JSON_NULL
 
 === json_first edge cases ===
 json_first(NULL): NULL
-json_first(version) [string]: non-null UNKNOWN
+json_first(version) [string]: NULL JSON_NONE
 json_first(empty_arr) [array]: NULL
 
 === json_next edge cases ===
