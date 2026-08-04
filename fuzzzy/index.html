@@ -1,0 +1,99 @@
+<!DOCTYPE HTML>
+<head>
+    <title>Fuzzz</title>
+    <script src="https://cdn.jsdelivr.net/npm/fuzzysort@3.1.0/fuzzysort.min.js"></script>
+    <script src="./index.js" type="module" defer></script>
+        <style>
+        body {
+            display: flex;
+            align-items: start;
+            justify-content: space-around;
+        }
+        #data_div_ol {
+            height: 90vh;
+            overflow-y: auto;
+        }
+        #search_container {
+            position: relative;
+        }
+        #input {
+            width: 100%;
+            box-sizing: border-box;
+        }
+        #results_div {
+            position: absolute;
+            top: 100%;
+            width: 100%;
+            left: 0;
+            right: 0;
+
+            margin: 2px 0 0;
+            padding: 0;
+            list-style: none;
+
+            max-height: 300px;
+            overflow-y: auto;
+
+            background: white;
+            border: 1px solid #ccc;
+            border-radius: 0 0 6px 6px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 1000;
+        }
+        
+        #results_div ul {
+            padding: 0;
+        }
+
+        #results_div li {
+            padding: 5px 3px;
+            cursor: pointer;
+            overflow-wrap: break-word;
+        }
+
+        .result_li_hover {
+            background-color: #e8f0fe;
+        }
+
+        #results_div:not(:has(>ul>li)) {
+            display: none;
+        }
+
+        </style>
+</head>
+<body>
+    <div id="search_div">
+        <div id="search_type">
+            <label>
+                <input type="radio" name="search_type" value="final" checked>Final Search
+            </label>
+            <label>
+                <input type="radio" name="search_type" value="levenshtein">Basic Substring
+            </label>
+            <label>
+                <input type="radio" name="search_type" value="substring">Basic Substring
+            </label>
+            <label>
+                <input type="radio" name="search_type" value="regex">Case insensitive regex
+            </label>
+            <label>
+                <input type="radio" name="search_type" value="fuzzysort">FuzzySort Library
+            </label>
+            <label>
+                <input type="radio" name="search_type" value="html">HTML Input Search
+            </label>
+        </div>
+
+        <div>
+            <div id="output"></div>
+        </div>
+        <div id="search_container">
+            <input id="input" autocomplete="off"/>
+            <div id="results_div"></div>
+        </div>
+    </div>
+
+    <div id="data_div">
+        <p>List of all data</p>
+    </div>
+</body>
