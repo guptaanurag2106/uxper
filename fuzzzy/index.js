@@ -31,10 +31,10 @@ data_list.innerHTML = data_list_html;
 function debounce(f, delay) {
     let timerId;
 
-    return function(...args) {
+    return function (...args) {
         clearTimeout(timerId);
 
-        timerId = setTimeout(function() {f(...args);}, delay);
+        timerId = setTimeout(function () { f(...args); }, delay);
     }
 }
 
@@ -44,7 +44,7 @@ let selected_text = '';
 let current_li = null;
 let results_count = 0;
 
-let results_ul =  document.createElement("ul");
+let results_ul = document.createElement("ul");
 results_ul.setAttribute("id", "results_ul");
 results_div.appendChild(results_ul);
 
@@ -148,23 +148,13 @@ function damerauLevenshtein(a, b) {
     return H[m + 1][n + 1];
 }
 
-function is_char_alnum(char) {
-  const code = char.charCodeAt(0);
-  
-  return (
-    (code >= 48 && code <= 57) ||
-    (code >= 65 && code <= 90) ||
-    (code >= 97 && code <= 122)
-  );
-}
-
 function make_array_of_str(str) {
     let str_array = [];
     let temp_str = "";
     let temp_str_l = 0;
     let last_type = -1; // 0 means lowercase, 1 means upper case, 2 means digit
     for (let i = 0; i < str.length; i++) {
-        let char  = str[i];
+        let char = str[i];
         let curr_type = -1;
         const code = char.charCodeAt(0);
         if (code >= 97 && code <= 122) {
@@ -193,7 +183,7 @@ function make_array_of_str(str) {
                     temp_str = "";
                 }
             }
-            temp_str_l ++;
+            temp_str_l++;
             temp_str += char;
         } else {
             if (temp_str_l > 0) {
@@ -243,15 +233,15 @@ function match_score(arr1, arr2) {
             }
             const index = arr2[i].indexOf(fa);
             if (index === 0) {
-                l = (arr2[i].length - fa.length ) / (arr2[i].length);
+                l = (arr2[i].length - fa.length) / (arr2[i].length);
             } else if (index > 0) {
-                l = (arr2[i].length + index) / (2*arr2[i].length);
+                l = (arr2[i].length + index) / (2 * arr2[i].length);
             } else {
-                if (Math.abs(fa.length - arr2[i].length) > 3) {
+                if (Math.abs(fa.length - arr2[i].length) > 4) {
                     l = 1;
                 } else {
                     l =
-                        damerauLevenshtein(fa, arr2[i])/Math.max(fa.length, arr2[i].length);
+                        damerauLevenshtein(fa, arr2[i]) / arr2[i].length;
                 }
             }
             if (l < best_l) {
@@ -259,49 +249,52 @@ function match_score(arr1, arr2) {
                 best_i = i;
             }
         }
-        // console.log(best_l);
-        if (best_l > 0.7) {
+        // better match needed for shorter tokens
+        const cap = fa.length <= 5 ? 0.35 : 0.6;
+        if (best_l > cap) {
             current_match_score += 0;
-            continue;
-        }
-
-        if (best_l === 0) {
-            current_match_score += 100;
+            // continue;
         } else {
-            current_match_score += 100 * (1 - best_l * best_l);
-        }
 
-        if (last_match === -1) {
-            last_match = best_i;
-        } else {
-            // add points for correct order, and close by
-            if (best_i <= last_match)
-                current_match_score -= 20;
+            if (best_l === 0) {
+                current_match_score += 100;
+            } else {
+                current_match_score += 100 * (1 - best_l * best_l);
+            }
+
+            if (last_match === -1) {
+                last_match = best_i;
+            } else {
+                // add points for correct order, and close by
+                if (best_i <= last_match)
+                    current_match_score -= 15;
                 else {
                     current_match_score += Math.max(30 - (best_i - last_match - 1) * 2, 0);
                     if ((best_i - last_match) === 1) { // a bit more score for consecutive match
-                        current_match_score += 20;
+                        current_match_score += 25;
                     }
                     last_match = best_i;
                 }
+            }
 
             if (!found2[best_i]) { // not repeat find
                 current_match_score += 50;
                 found2[best_i] = true;
             }
+
+            // matched another search token
+            matched++;
+
+            // IMP: specifically for file paths, matching file names (ignoring other path, ext) is bonus
+            current_match_score += 15 * position_score(best_i, arr2.length);
+
+            match_score += current_match_score * fa.length;
         }
 
-        // matched another search token
-        matched ++;
-
-        // IMP: specifically for file paths, matching file names (ignoring other path, ext) is bonus
-        current_match_score += 50*position_score(best_i, arr2.length);
-
-        match_score += current_match_score * fa.length;
     }
-    if (matched === arr1.length) {
-        match_score += 30;
-    }
+    // penalize every query token that didn't match any candidate token:
+    // an all-token match must outrank a partial one
+    match_score *= matched / arr1.length;
     return match_score;
 }
 
@@ -340,23 +333,22 @@ function search(field) {
             }
         }
     } else if (search_method === "fuzzysort") {
-        const results = fuzzysort.go(field, data, {threshold:0.3});
+        const results = fuzzysort.go(field, data, { threshold: 0.3 });
         for (let result of results) {
             html += `<li class="result_li">${result.target}</li>`;
             results_count++;
         }
     } else if (search_method === "levenshtein") {
         let levedist = [];
-        field = field.toLowerCase();
         for (let i = 0; i < data.length; i++) {
             let str = data[i];
             if (str) {
                 const d = levenshtein(str.toLowerCase(), field);
-                if (d > str.length*0.90) continue;
-                levedist.push({i: i, d: d});
+                if (d > str.length * 0.90) continue;
+                levedist.push({ i: i, d: d });
             }
         }
-        levedist.sort((a,b) => a.d - b.d);
+        levedist.sort((a, b) => a.d - b.d);
         for (let obj of levedist) {
             html += `<li class="result_li">${data[obj.i]}</li>`;
         }
@@ -364,24 +356,23 @@ function search(field) {
     } else if (search_method === "final") {
         let field_array = make_array_of_str(field);
 
-        // console.log(field_array);
         let scores = [];
         for (let i = 0; i < data.length; i++) {
             const str = data[i];
             if (!str) continue;
             let str_array = make_array_of_str(str);
             let score = match_score(field_array, str_array);
-            scores.push({i, score});
-            // scores.push({str, score});
+            if (score != 0) {
+                scores.push({ i, score });
+                // scores.push({ str, score });
+            }
         }
-        scores.sort((a,b)=>b.score-a.score);
+        scores.sort((a, b) => b.score - a.score);
         for (let obj of scores) {
-            if (obj.score <= 0) break;
             html += `<li class="result_li">${data[obj.i]}</li>`;
             // html += `<li class="result_li">${obj.str}</li>`;
         }
         results_count = scores.length;
-        // console.log(scores);
     }
 
     results_ul.innerHTML = html;
@@ -391,15 +382,15 @@ function search(field) {
         current_li = results_ul.firstElementChild;
         current_li.classList.add("result_li_hover");
         current_li.scrollIntoView({
-          block: 'nearest',
-          inline: 'nearest'
+            block: 'nearest',
+            inline: 'nearest'
         });
     }
 
     output.textContent = `Took ${duration}ms to show ${results_count} items`;
 }
 
-let searchDebounce = debounce(search, 500);
+let searchDebounce = debounce(search, 200);
 function onChange(e) {
     searchDebounce(e.target.value);
 }
