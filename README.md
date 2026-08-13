@@ -32,3 +32,4 @@
 - **Sorting**: Trying some sorting algorithms
 - **Gnuplot**: Trying out [gnuplot](https://en.wikipedia.org/wiki/Gnuplot)
 - **Fuzzy Search**: Implementing fuzzy searching
+- **Timing Attack**: Trying strcmp based timing attack
