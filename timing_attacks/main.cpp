@@ -13,9 +13,6 @@
 #include <random>
 #include <unordered_map>
 
-// TODO:passing pass via ref and using string_view for SECRET_PASSWORD fails
-// with -O2 (even size estimation is wrong). even for small strings?
-// using & doesn't copy the string so now SSO vs heap copy difference
 bool check_password(const std::string &pass) {
     static constexpr std::string_view SECRET_PASSWORD = "B7BR5*8WAj4PT@2k";
 
@@ -40,6 +37,10 @@ constexpr unsigned int core_id = 1;
 uint64_t start_tsc() {
     _mm_lfence();
     return __rdtsc();
+}
+
+inline void do_no_optimize_please(bool val) {
+    asm volatile("" : : "r,m"(val) : "memory");
 }
 
 uint64_t end_tsc() {
@@ -67,16 +68,14 @@ int main() {
 
     constexpr size_t MAX_LEN = 20;
     std::unordered_map<size_t, uint64_t> len_times;
-    for (size_t l = 1; l < MAX_LEN; l++) {
-        len_times[l] = SIZE_MAX;
-    }
-    for (int i = 0; i < 5000; i++) {
+    for (int i = 0; i < 50000; i++) {
         for (size_t l = 1; l <= MAX_LEN; l++) {
             std::string pass(l, 'a');
             uint64_t start = start_tsc();
-            check_password(pass);
+            bool res = check_password(pass);
+            do_no_optimize_please(res);
             uint64_t end = end_tsc();
-            len_times[l] = std::min(len_times[l], end - start);
+            len_times[l] += end - start;
         }
     }
 
@@ -127,7 +126,8 @@ int main() {
                 pass[iter] = c;
 
                 uint64_t start = start_tsc();
-                check_password(pass);
+                bool res = check_password(pass);
+                do_no_optimize_please(res);
 
                 uint64_t end = end_tsc();
                 uint64_t elapsed = end - start;

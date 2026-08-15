@@ -1,6 +1,6 @@
 CC=g++
 CFLAGS=-Wall -Wextra -pedantic -g -O0
-#CFLAGS=-Wall -Wextra -pedantic -g -O2
+CFLAGS=-Wall -Wextra -pedantic -g -O3
 
 all: main
 
