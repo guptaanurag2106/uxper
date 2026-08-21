@@ -1,9 +1,38 @@
 import generatePaths from "./generator.js";
 
 let data5k = generatePaths(5000);
-let data1k = generatePaths(1000);
+let data1k = generatePaths(10);
 
-const data = data1k;
+let data = [
+    "/home/alice/projects/store-api/src/services/UserService.ts",
+    "/home/alice/projects/store-api/src/services/UserService.test.ts",
+    "/home/alice/projects/store-api/src/services/UserSessionService.ts",
+    "/home/alice/projects/store-api/src/services/UserSearchService.ts",
+    "/home/alice/projects/store-api/src/services/OrderService.ts",
+
+    "/home/alice/projects/store-api/src/controllers/UserController.ts",
+    "/home/alice/projects/store-api/src/controllers/UserSearchController.ts",
+    "/home/alice/projects/store-api/src/controllers/OrderController.ts",
+
+    "/home/alice/projects/store-api/src/repositories/UserRepository.ts",
+    "/home/alice/projects/store-api/src/repositories/UserSearchRepository.ts",
+    "/home/alice/projects/store-api/src/repositories/OrderRepository.ts",
+
+    "/home/alice/projects/store-api/src/services/auth/UserAuthService.ts",
+    "/home/alice/projects/store-api/src/services/auth/UserAuthorizationService.ts",
+    "/home/alice/projects/store-api/src/services/users/UserProfileService.ts",
+
+    "/home/alice/projects/store-api/tests/services/UserService.test.ts",
+    "/home/alice/projects/store-api/tests/services/UserSearchService.test.ts",
+
+    "/home/alice/projects/store-api/src/utils/SearchUtils.ts",
+    "/home/alice/projects/store-api/src/utils/SearchUserUtils.ts",
+
+    "/home/alice/projects/store-api/docs/UserSearchService.md",
+    "/home/alice/projects/store-api/config/user-search.yml",
+    "/home/alice/projects/store-api/src/search/user/services/OtherService.ts"
+];
+// data = data5k;
 const DATA_COUNT = data.length;
 
 let data_div_p = document.querySelector("#data_div>p");
@@ -151,50 +180,47 @@ function damerauLevenshtein(a, b) {
 function make_array_of_str(str) {
     let str_array = [];
     let temp_str = "";
-    let temp_str_l = 0;
     let last_type = -1; // 0 means lowercase, 1 means upper case, 2 means digit
-    for (let i = 0; i < str.length; i++) {
+    const str_len = str.length;
+    for (let i = 0; i < str_len; i++) {
         let char = str[i];
-        let curr_type = -1;
-        const code = char.charCodeAt(0);
-        if (code >= 97 && code <= 122) {
-            curr_type = 0;
-        } else if (code >= 65 && code <= 90) {
-            curr_type = 1;
-            char = char.toLowerCase();
-        } else if (code >= 48 && code <= 57) {
-            curr_type = 2;
-        }
 
         if (char === ' ' || char === '\n' || char === '\r' || char === '\t') {
-            if (temp_str_l > 0) {
+            if (temp_str.length > 0) {
                 str_array.push(temp_str);
-                temp_str_l = 0;
                 temp_str = "";
             }
-        } else if (curr_type >= 0) {
-            if (
-                (curr_type === 2 && last_type !== 2) ||
-                (curr_type === 1 && last_type === 0)
-            ) {
-                if (temp_str_l > 0) {
+        } else {
+            let curr_type = -1;
+            const code = char.charCodeAt(0);
+            if (code >= 97 && code <= 122) {
+                curr_type = 0;
+            } else if (code >= 65 && code <= 90) {
+                curr_type = 1;
+                char = char.toLowerCase();
+            } else if (code >= 48 && code <= 57) {
+                curr_type = 2;
+            } else {
+                if (temp_str.length > 0) {
                     str_array.push(temp_str);
-                    temp_str_l = 0;
+                    temp_str = "";
+                }
+                continue;
+            }
+            if (
+                (curr_type === 1 && last_type === 0) ||
+                (curr_type === 2 && last_type !== 2)
+            ) {
+                if (temp_str.length > 0) {
+                    str_array.push(temp_str);
                     temp_str = "";
                 }
             }
-            temp_str_l++;
             temp_str += char;
-        } else {
-            if (temp_str_l > 0) {
-                str_array.push(temp_str);
-                temp_str_l = 0;
-                temp_str = "";
-            }
+            last_type = curr_type;
         }
-        last_type = curr_type;
     }
-    if (temp_str_l > 0) {
+    if (temp_str.length > 0) {
         str_array.push(temp_str);
     }
     return str_array;
@@ -205,97 +231,174 @@ function make_array_of_str(str) {
 function position_score(i, len) {
     const t = i / (len - 1);
 
-    let weight;
-    if (t < 0.8)
-        weight = 0.4 + 0.8 * t;
-    else
-        weight = 1.04 - 0.3 * (t - 0.8) / 0.2;
+    //so gradual increase from 0 to rise_end, then plateau around rise_end to fall_start, then fall down
+    const rise_end = 0.70;
+    const fall_start = 0.90;
 
-    return weight;
+    if (t < rise_end) {
+        const x = t / rise_end;
+        const s = x * x * (3 - 2 * x); // smoothstep
+        return 0.5 + 0.5 * s;
+    }
+
+    if (t < fall_start) {
+        return 1.0;
+    }
+
+    const x = (t - fall_start) / (1.0 - fall_start);
+    const s = x * x * (3 - 2 * x);
+    return 1.0 - 0.25 * s;
 }
 
-// arr1 is the search term,arr2 the string to search in
-function match_score(arr1, arr2) {
-    let match_score = 0;
-    let last_match = -1;
-    let matched = 0;
-    let found2 = Array(arr2.length).fill(false);
-    for (let fa of arr1) {
-        let current_match_score = 0;
-        let best_i = -1;
-        let best_l = Infinity;
-        for (let i = 0; i < arr2.length; i++) {
-            let l = 10000000;
-            if (arr2[i] === fa) {
-                best_l = 0;
-                best_i = i;
-                break;
-            }
-            const index = arr2[i].indexOf(fa);
-            if (index === 0) {
-                l = (arr2[i].length - fa.length) / (arr2[i].length);
-            } else if (index > 0) {
-                l = (arr2[i].length + index) / (2 * arr2[i].length);
-            } else {
-                if (Math.abs(fa.length - arr2[i].length) > 4) {
+function match_score_parent(arr1) {
+    const damerau_cache = new Map();
+
+    function get_damerau(a, b) {
+        const key = a + "\0" + b;
+        let d = damerau_cache.get(key);
+        if (d === undefined) {
+            d = damerauLevenshtein(a, b);
+            damerau_cache.set(key, d);
+        }
+        return d;
+    }
+
+    // arr1 is the search term,arr2 the string to search in
+    function match_score(arr2) {
+        let match_score = 0;
+        let matched = 0;
+        const arr2_len = arr2.length;
+        let found2 = new Uint8Array(arr2_len);
+        const matches = [];
+        // console.log('------------', arr2.join('/'))
+        let arr1_len = arr1.length;
+        for (let i = 0; i < arr1_len; i++) {
+            let fa = arr1[i];
+            let fa_len = fa.length;
+            let current_match_score = 0;
+            let best_i = -1;
+            let best_l = Infinity;
+            let best_type = -1; // 0 exact, 1 prefix, 2 substring, 3 fuzzy
+
+            let split_before = "";
+            let split_after = "";
+            for (let i = 0; i < arr2_len; i++) {
+                const arr2_i = arr2[i];
+                const arr2_i_len = arr2_i.length;
+                let l = 10000000;
+                if (arr2_i === fa) {
+                    best_l = 0;
+                    best_i = i;
+                    best_type = 0;
+                    break;
+                }
+                if (fa_len < arr2_i_len) {
+                    const index = arr2_i.indexOf(fa);
+
+                    if (index >= 0) {
+                        const x = 1 - fa_len / arr2_i_len;
+                        l = 0.6 * x * x + index / arr2_i_len;
+
+                        if (l < best_l) {
+                            best_l = l;
+                            best_i = i;
+                            best_type = 1;
+                            continue;
+                        }
+                    }
+                }
+
+                const len_diff = fa_len - arr2_i_len;
+                if (len_diff > 4 || len_diff < -4) {
                     l = 1;
                 } else {
                     l =
-                        damerauLevenshtein(fa, arr2[i]) / arr2[i].length;
+                        get_damerau(fa, arr2_i) / Math.max(arr2_i_len, fa_len);
+                    // console.log(fa, arr2_i, l);
                 }
-            }
-            if (l < best_l) {
-                best_l = l;
-                best_i = i;
-            }
-        }
-        // better match needed for shorter tokens
-        const cap = fa.length <= 5 ? 0.35 : 0.6;
-        if (best_l > cap) {
-            current_match_score += 0;
-            // continue;
-        } else {
-
-            if (best_l === 0) {
-                current_match_score += 100;
-            } else {
-                current_match_score += 100 * (1 - best_l * best_l);
-            }
-
-            if (last_match === -1) {
-                last_match = best_i;
-            } else {
-                // add points for correct order, and close by
-                if (best_i <= last_match)
-                    current_match_score -= 15;
-                else {
-                    current_match_score += Math.max(30 - (best_i - last_match - 1) * 2, 0);
-                    if ((best_i - last_match) === 1) { // a bit more score for consecutive match
-                        current_match_score += 25;
-                    }
-                    last_match = best_i;
+                if (l < best_l) {
+                    best_l = l;
+                    best_i = i;
+                    best_type = 2;
                 }
             }
 
-            if (!found2[best_i]) { // not repeat find
-                current_match_score += 50;
-                found2[best_i] = true;
+            // const cap = fa.length <= 5 ? 0.35 : 0.6;
+            const cap = 0.5;
+            // if (best_type === 2 && best_l > cap) {
+            if (best_l >= cap) {
+                current_match_score += 0;
+                match_score += current_match_score;
+            } else {
+                current_match_score += 80 * (1 - best_l * best_l);
+
+                // Remember the match. Order/proximity is calculated after all
+                // search tokens have been matched.
+                matches.push(best_i);
+
+                if (found2[best_i]) { // repeat find
+                    current_match_score -= 30;
+                } else {
+                    found2[best_i] = true;
+                }
+
+                // IMP: specifically for file paths, matching file names (ignoring other path, ext) is bonus
+                current_match_score += 15 * position_score(best_i, arr2_len);
+
+                match_score += current_match_score * fa_len;
+                // matched another search token
+                matched++;
             }
 
-            // matched another search token
-            matched++;
-
-            // IMP: specifically for file paths, matching file names (ignoring other path, ext) is bonus
-            current_match_score += 15 * position_score(best_i, arr2.length);
-
-            match_score += current_match_score * fa.length;
+            if (split_before.length > 0) {
+                arr1_len++;
+                arr1.push(split_before);
+            }
+            if (split_after.length > 0) {
+                arr1_len++;
+                arr1.push(split_after);
+            }
         }
+        const matches_len = matches.length;
+        for (let i = 1; i < matches_len; i++) {
+            const previous = matches[i - 1];
+            const current = matches[i];
 
+            // correct order
+            if (current > previous) {
+                match_score += 50;
+            }
+
+            // add points for being close
+            const distance = Math.abs(current - previous) - 1;
+
+            // proximity bonus, max 50
+            match_score += Math.max(50 - distance * 3, 0);
+
+            if (distance === 0) { // consecutive match
+                match_score += 30;
+            }
+        }
+        // penalize every query token that didn't match any candidate token:
+        // an all-token match must outrank a partial one
+        const matched_ratio = matched / arr1_len;
+        match_score *= matched_ratio * matched_ratio;
+        return match_score;
     }
-    // penalize every query token that didn't match any candidate token:
-    // an all-token match must outrank a partial one
-    match_score *= matched / arr1.length;
-    return match_score;
+
+    let scores = [];
+    const data_len = data.length;
+    for (let i = 0; i < data_len; i++) {
+        const str = data[i];
+        if (!str) continue;
+        const str_array = make_array_of_str(str);
+        const score = match_score(str_array);
+        if (score != 0) {
+            scores.push({ i, score });
+            // scores.push({ str, score });
+        }
+    }
+    return scores;
 }
 
 function search(field) {
@@ -356,23 +459,16 @@ function search(field) {
     } else if (search_method === "final") {
         let field_array = make_array_of_str(field);
 
-        let scores = [];
-        for (let i = 0; i < data.length; i++) {
-            const str = data[i];
-            if (!str) continue;
-            let str_array = make_array_of_str(str);
-            let score = match_score(field_array, str_array);
-            if (score != 0) {
-                scores.push({ i, score });
-                // scores.push({ str, score });
-            }
-        }
+        let scores = match_score_parent(field_array);
         scores.sort((a, b) => b.score - a.score);
+        const max_score = scores[0].score;
         for (let obj of scores) {
+            if (obj.score / max_score <= 0.5) break;
             html += `<li class="result_li">${data[obj.i]}</li>`;
             // html += `<li class="result_li">${obj.str}</li>`;
+            results_count++;
         }
-        results_count = scores.length;
+        console.log(scores)
     }
 
     results_ul.innerHTML = html;
@@ -390,7 +486,7 @@ function search(field) {
     output.textContent = `Took ${duration}ms to show ${results_count} items`;
 }
 
-let searchDebounce = debounce(search, 200);
+let searchDebounce = debounce(search, 0);
 function onChange(e) {
     searchDebounce(e.target.value);
 }
@@ -403,7 +499,12 @@ function select(text) {
     current_li = null;
 }
 
-input.addEventListener("input", onChange);
+// input.addEventListener("input", onChange);
+input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+        onChange(e);
+    }
+});
 
 search_type.addEventListener("click", function (e) {
     if (e.target.type == "radio") {
