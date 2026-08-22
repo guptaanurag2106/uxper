@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<head>
+    <title>Graphs</title>
+    <style>
+        body {
+            background-color: white;
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
+        h1, p {
+            color: black;
+            text-align: center;
+        }
+        #canvas-container {
+            position: relative;
+            top: 10%;
+            left: 50%;
+            min-width: 100px;
+            min-height: 100px;
+            width: 600px;
+            height: 600px;
+            transform: translate(-50%, 0%);
+            resize: both;
+            overflow: auto;
+            aspect-ratio: 1 / 1;
+            margin: 0;
+            padding: 0;
+        }
+        #canvas {
+            display: block;
+            background-color: white;
+            outline: 2px solid black;
+            width: 100%;
+            height: 100%;
+        }
+        div {
+            position: absolute;
+            top: calc(15% + 600px);
+            left: 50%;
+            transform: translate(-50%, 0);
+        }
+        #count {
+            all: unset;
+            background-color: black;
+            color: white;
+            padding: 5px;
+        }
+        #reset {
+           all: unset;
+           background-color: black;
+           color: white;
+           padding: 5px;
+           cursor: pointer;
+           display: none;
+        }
+        #download {
+           all: unset;
+           background-color: black;
+           color: white;
+           padding: 5px;
+           cursor: pointer;
+       }
+    </style>
+</head>
+<body>
+    <h1>X/Y Plots</h1>
+    <p>Scroll inside graph to add or remove points</p>
+    <div id="canvas-container">
+        <canvas id="canvas" ></canvas>
+    </div>
+    <div>
+        <input type="number" id="count">Number of data points</input>
+        <button id="reset" title="Double click graph to reset">Reset</button>
+        <button id="download">Save as image</button>
+    </div>
+    <script src="./index.js"></script>
+</body>
