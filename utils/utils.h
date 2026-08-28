@@ -6,8 +6,6 @@
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 #include <sys/time.h>
 
@@ -376,6 +374,12 @@ UTILS_DEF char *combine_charp(const char *str1, const char *str2);
 // Will use the utils_static_temp_buffer and reset it everytime its filled
 UTILS_DEF char *temp_sprintf(const char *format, ...);
 
+// Minify string in place
+UTILS_DEF void minify_str(char *str);
+
+// Escape string (internally mallocs)
+UTILS_DEF char *escape_str(char *str);
+
 // ----------------------------------------------------------------------------
 //  File Utils
 // ----------------------------------------------------------------------------
@@ -387,7 +391,6 @@ UTILS_DEF char *read_entire_file(const char *filename);
 #endif  // UTILS_H_
 
 #ifdef UTILS_IMPLEMENTATION
-
 #include <errno.h>
 #include <math.h>
 #include <stdio.h>
@@ -591,6 +594,7 @@ UTILS_DEF bool triangle_is_inside(float x1, float y1, float x2, float y2,
     return (A == A1 + A2 + A3);
 }
 
+// TODO:make them thread local?
 static char utils_static_temp_buffer[UTILS_MAX_TEMP_SIZE];
 static uint32_t utils_static_temp_buffer_pos = 0;
 
@@ -685,6 +689,81 @@ UTILS_DEF char *temp_sprintf(const char *format, ...) {
     utils_static_temp_buffer_pos += (uint32_t)n + 1;
 
     return ret;
+}
+
+UTILS_DEF void minify_str(char *str) {
+    if (str == NULL || *str == '\0') return;
+
+    char *out = str;
+    int in_string = 0;
+    while (*str != '\0') {
+        if (!in_string) {
+            while (*str == ' ' || *str == '\t' || *str == '\n' ||
+                   *str == '\r') {
+                str++;
+            }
+        }
+        if (*str == '\0') break;
+
+        if (*str == '"' || *str == '\'' || *str == '`') {
+            // FIX:check for escaping
+            if (!in_string) {
+                in_string = 1;
+            } else {
+                in_string = 0;
+            }
+        }
+        *out = *str;
+        out++;
+        str++;
+    }
+
+    *out = '\0';
+}
+
+//TODO: handles unicode?
+UTILS_DEF char *escape_str(char *str) {
+    if (str == NULL) return NULL;
+    if (*str == '\0') {
+        char *res = malloc(sizeof(char) * 1);
+        ASSERT(res && "escape_str malloc failed");
+        *res = '\0';
+        return res;
+    }
+    size_t len = 0;
+    char *copy = str;
+    while (*copy != '\0') {
+        if (*copy == '"' || *copy == '\'' || *copy == '\\') {
+            len++;
+        } else if (*copy == '\n' || *copy == '\r' || *copy == '\t') {
+            len += 2;
+        }
+        len++;
+        copy++;
+    }
+    char *res = malloc(sizeof(char) * (len + 1));
+    ASSERT(res && "escape_str malloc failed");
+    len = 0;
+    while (*str != 0) {
+        if (*str == '"' || *str == '\'' || *str == '\\') {
+            res[len++] = '\\';
+            res[len++] = *str;
+        } else if (*str == '\n') {
+            res[len++] = '\\';
+            res[len++] = '\n';
+        } else if (*str == '\r') {
+            res[len++] = '\\';
+            res[len++] = '\r';
+        } else if (*str == '\t') {
+            res[len++] = '\\';
+            res[len++] = '\t';
+        } else {
+            res[len++] = *str;
+        }
+        str++;
+    }
+    res[len] = '\0';
+    return res;
 }
 
 UTILS_DEF char *read_entire_file(const char *filename) {
