@@ -13,6 +13,7 @@ ARENA_IMPLEMENTATION
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #define JSON_ERROR_STR_SIZE 500
@@ -74,7 +75,7 @@ typedef struct {
     size_t byte_offset;
     const char *subsystem;  // "parse" or "dump"
     char message[JSON_ERROR_STR_SIZE];
-} json_Error;
+} Json_Error;
 
 // TODO: merge json and json_parse_file
 // TODO: possibly add versions json_parse_string_ref(references user memory, but
@@ -84,14 +85,16 @@ typedef struct {
 
 // Parses a null-terminated JSON string. The returned Json owns its parsed data;
 // the input may be freed after this call. Free with json_free().
-Json *json_parse_string(const char *file_content, json_Error *err);
+Json *json_parse_string(const char *file_content, Json_Error *err);
 // Parses a file (if exists). The returned Json owns its parsed data;
 // Free with json_free().
-Json *json_parse_file(const char *file_name, json_Error *err);
+Json *json_parse_file(const char *file_name, Json_Error *err);
 
-char *json_stringify(Json *json, bool minified, json_Error *err);
+// TODO:add some form of minifier (here or utils?)
+// FIX:should this escape strings as well?
+char *json_stringify(Json *json, bool minified, Json_Error *err);
 
-void json_dump(Json *json, FILE *f, bool minified, json_Error *err);
+void json_dump(const Json *json, FILE *f, bool minified, Json_Error *err);
 
 void json_free(Json *json);
 
@@ -169,7 +172,7 @@ typedef struct Lexer {
     Arena *arena;
     const char *start;
     const char *path;
-    json_Error *err;
+    Json_Error *err;
 
     const char *curr;
     const char *end;
@@ -180,7 +183,7 @@ typedef struct Lexer {
     int line_offset;
 } Lexer;
 
-static inline void json__clear_error(json_Error *err, const char *source,
+static inline void json__clear_error(Json_Error *err, const char *source,
                                      const char *subsystem) {
     if (err == NULL) return;
     err->source = source != NULL ? source : "";
@@ -191,7 +194,7 @@ static inline void json__clear_error(json_Error *err, const char *source,
     err->message[0] = '\0';
 }
 
-static inline void json__set_error_impl(json_Error *err, const char *source,
+static inline void json__set_error_impl(Json_Error *err, const char *source,
                                         int line, int column,
                                         size_t byte_offset,
                                         const char *subsystem,
@@ -229,6 +232,16 @@ static inline void json__set_error_impl(json_Error *err, const char *source,
                          "parse", (format), __VA_ARGS__)
 
 // TODO: should it malloc and not arena_alloc?
+// static char *json__arena_string_to_charp(Arena *arena, String data) {
+//    if (data.start == NULL) return NULL;
+//    // char *buf = arena_alloc_array(arena, char, data.len + 1);
+//    char *buf = malloc(sizeof(char) * (data.len + 1));
+//    if (buf == NULL) return NULL;
+//    memcpy(buf, data.start, data.len);
+//    buf[data.len] = '\0';
+//    return buf;
+//}
+
 static char *json__arena_string_to_charp(Arena *arena, String data) {
     if (data.start == NULL) return NULL;
     char *buf = arena_alloc_array(arena, char, data.len + 1);
@@ -254,8 +267,8 @@ static char json__lexer_get_char(
     if (curr == '\r') {
         if (json__lexer_peek_char(l) == '\n') {
             l->curr++;
+            curr = '\n';
         }
-        curr = '\n';
         l->line_number++;
         l->line_offset = 1;
     } else if (curr == '\n') {
@@ -333,6 +346,11 @@ static void json__lexer_get_token(Lexer *l) {
                 if (c == '\\') {
                     c = json__lexer_get_char(l);
                     len++;
+                } else if (c == '\n' || c == '\r') {
+                    l->kind = TOKEN_UNKNOWN;
+                    json__set_lerror_raw(
+                        l, "invalid string: strings cannot contain newline");
+                    return;
                 } else if (c == '"')
                     break;
                 c = json__lexer_get_char(l);
@@ -644,6 +662,8 @@ static bool json__parse_object(Lexer *l, Json **res, bool toplevel) {
             break;
         case TOKEN_CLOSECURLY:
             return true;
+        case TOKEN_UNKNOWN:
+            goto fail;
         default:
             json__set_lerror(l, "expected '}', got '%s'",
                              json__lexer_print_token(l));
@@ -671,7 +691,7 @@ static inline size_t json__max_size(size_t a, size_t b) {
     return a > b ? a : b;
 }
 
-Json *json_parse_string(const char *file_content, json_Error *err) {
+Json *json_parse_string(const char *file_content, Json_Error *err) {
     json__clear_error(err, "", "parse");
     if (file_content == NULL) {
         json__set_error_impl(err, "", 0, 0, 0, "parse", "%s",
@@ -736,7 +756,7 @@ Json *json_parse_string(const char *file_content, json_Error *err) {
     return json;
 }
 
-Json *json_parse_file(const char *file_name, json_Error *err) {
+Json *json_parse_file(const char *file_name, Json_Error *err) {
     json__clear_error(err, file_name, "parse");
     if (file_name == NULL || strlen(file_name) == 0) {
         json__set_error_impl(err, file_name, 0, 0, 0, "parse", "%s",
@@ -870,10 +890,10 @@ typedef struct {
         }                                                                     \
     } while (0)
 
-static void json__dump_impl(Json *json, Json__Writer *w, int indent_len,
-                            bool minified, json_Error *err);
-static void json__dump_data(Json_Value *json_data, Json__Writer *w,
-                            int indent_len, bool minified, json_Error *err) {
+static void json__dump_impl(const Json *json, Json__Writer *w, int indent_len,
+                            bool minified, Json_Error *err);
+static void json__dump_data(const Json_Value *json_data, Json__Writer *w,
+                            int indent_len, bool minified, Json_Error *err) {
     switch (json_data->data_kind) {
         case JSON_NONE:
             return;
@@ -930,8 +950,8 @@ static void json__dump_data(Json_Value *json_data, Json__Writer *w,
     }
 }
 
-static void json__dump_impl(Json *json, Json__Writer *w, int indent_len,
-                            bool minified, json_Error *err) {
+static void json__dump_impl(const Json *json, Json__Writer *w, int indent_len,
+                            bool minified, Json_Error *err) {
     if (json == NULL) return;
 
     while (json != NULL) {
@@ -971,7 +991,7 @@ static void json__dump_impl(Json *json, Json__Writer *w, int indent_len,
     }
 }
 
-char *json_stringify(Json *json, bool minified, json_Error *err) {
+char *json_stringify(Json *json, bool minified, Json_Error *err) {
     Json__Writer writer = {.string = {0}};
     if (json == NULL) {
         json__set_error_impl(err, "", 0, 0, 0, "dump", "%s", "json is null");
@@ -985,7 +1005,7 @@ char *json_stringify(Json *json, bool minified, json_Error *err) {
     return writer.string.items;
 }
 
-void json_dump(Json *json, FILE *f, bool minified, json_Error *err) {
+void json_dump(const Json *json, FILE *f, bool minified, Json_Error *err) {
     Json__Writer writer = {.f = f};
     if (json == NULL) {
         json__set_error_impl(err, "", 0, 0, 0, "dump", "%s", "json is null");
@@ -993,7 +1013,6 @@ void json_dump(Json *json, FILE *f, bool minified, json_Error *err) {
     }
     json__clear_error(err, json->input_file, "dump");
     json__dump_impl(json, &writer, 0, minified, err);
-    if (minified) fprintf(f, "\n");
 }
 
 void json_free(Json *json) {
