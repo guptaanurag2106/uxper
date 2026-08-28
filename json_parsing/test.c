@@ -10,7 +10,7 @@
 #define UTILS_IMPLEMENTATION
 #include "utils.h"
 
-static char *format_json_error(const json_Error *err) {
+static char *format_json_error(const Json_Error *err) {
     if (err == NULL) return NULL;
     return temp_sprintf("%s:%d:%d: %s", err->source, err->line, err->column,
                         err->message);
@@ -26,6 +26,8 @@ const char *test_files[] = {
     TEST_FOLDER "fail-03-invalid-values.json",
     TEST_FOLDER "fail-04-extra-commas.json",
     TEST_FOLDER "fail-05-double-root.json",
+    TEST_FOLDER "fail-06-string-newline.json",
+    TEST_FOLDER "fail-07-big-number.json",
     TEST_FOLDER "pass-01-basic-values.json",
     TEST_FOLDER "pass-02-arrays-and-nesting.json",
     TEST_FOLDER "pass-03-escaped-strings.json",
@@ -56,7 +58,7 @@ int run(const char *file_name, char **res) {
             return -1;
         }
 
-        json_Error err = {0};
+        Json_Error err = {0};
         Json *json = json_parse_string(file_content, &err);
         if (json == NULL) {
             *res = format_json_error(&err);
@@ -64,7 +66,7 @@ int run(const char *file_name, char **res) {
             return 1;
         }
 
-        json_Error dump_err = {0};
+        Json_Error dump_err = {0};
         *res = json_stringify(json, true, &dump_err);
         if (*res == NULL) {
             *res = format_json_error(&dump_err);
