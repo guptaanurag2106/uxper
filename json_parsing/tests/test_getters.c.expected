@@ -75,7 +75,7 @@ json_number(NULL): 0
 
 === json_cstring ===
 json_cstring(version): 1.0.0
-json_cstring(escapedString): Quotes: \"Hello\", Backslash: \\\\, Slash: \\/, Newline:\\nTab:\\tCarriage:\\rFormFeed:\\fBackspace:\\b
+json_cstring(escapedString): Quotes: "Hello", Backslash: \\, Slash: \/, Newline:\nTab:\tCarriage:\rFormFeed:\fBackspace:\b
 json_cstring(emptyString): ""
 json_cstring(unicode): こんにちは 🌍 Привет مرحبا 😀
 json_cstring(NULL): NULL
@@ -202,10 +202,10 @@ edgeCases.repeated[1].v: 1
 edgeCases.repeated[2].v: 1
 
 === special strings ===
-special.jsonLike: {\"fake\":true}
+special.jsonLike: {"fake":true}
 special.xmlLike: <root><child/></root>
 special.sqlLike: SELECT * FROM users WHERE id = 1;
-special.path: C:\\\\Program Files\\\\Test
+special.path: C:\\Program Files\\Test
 special.url: https://example.com/api?q=test&x=1
 special.email: user@example.com
 

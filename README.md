@@ -34,3 +34,4 @@
 - **Fuzzy Search**: Implementing fuzzy searching
 - **Timing Attack**: Trying strcmp based timing attack
 - **Line Graphs**: Making some 2D line graphs
+- **Asyncio**: Experimenting with python's asyncio

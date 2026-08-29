@@ -5,7 +5,7 @@
 #define ARENA_IMPLEMENTATION
 #include "json.h"
 
-static void print_json_error(const json_Error *err) {
+static void print_json_error(const Json_Error *err) {
     if (err == NULL) return;
     printf("%s:%d:%d: %s\n", err->source, err->line, err->column, err->message);
     return;
@@ -38,7 +38,7 @@ static const char *kind_str(enum Node_Kind k) {
 
 int main(void) {
     SECTION("parse sample.json");
-    json_Error err = {0};
+    Json_Error err = {0};
     Json *root = json_parse_file("tests/sample.json", &err);
     printf("json_parse_file: %s\n", root ? "OK" : "FAIL");
     if (!root) {

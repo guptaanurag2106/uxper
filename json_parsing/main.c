@@ -1,7 +1,7 @@
-#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/time.h>
+
 
 #define JSON_IMPLEMENTATION
 #define ARENA_IMPLEMENTATION
@@ -10,6 +10,7 @@
 #include "json.h"
 
 #define UTILS_IMPLEMENTATION
+#define DEBUG
 #include "utils.h"
 
 int main(int argc, char **argv) {
@@ -22,20 +23,28 @@ int main(int argc, char **argv) {
     }
 
     char *input_file = shift(&argc, &argv);
-
     char *scene_file_content = read_entire_file(input_file);
+    // cJSON_Minify(scene_file_content);
+    minify_str(scene_file_content);
+    char *escaped_str = escape_str(scene_file_content);
+    printf("%s\n\n", escaped_str);
+    free(escaped_str);
+
     struct timeval start, end;
+
     gettimeofday(&start, NULL);
-    json_Error err = {0};
+    Json_Error err = {0};
     Json *json = json_parse_string(scene_file_content, &err);
     if (json == NULL) {
         printf("%s:%d:%d: %s\n", err.source, err.line, err.column, err.message);
     } else {
-        json_dump(json, stdout, true, &err);
-        gettimeofday(&end, NULL);
+        char *out = json_stringify(json, true, &err);
+        printf("%s\n", out);
         json_free(json);
-        printf("json.h time taken: %fms\n", timersub_ms(&end, &start));
+        free(out);
     }
+    gettimeofday(&end, NULL);
+    printf("json.h time taken: %fms\n", timersub_ms(&end, &start));
 
     gettimeofday(&start, NULL);
     cJSON *cjson = cJSON_Parse(scene_file_content);
@@ -45,14 +54,16 @@ int main(int argc, char **argv) {
         fprintf(stderr, "load_scene: JSON parse error near: %.30s\n%s",
                 cJSON_GetErrorPtr() ? cJSON_GetErrorPtr() - 15 : "unknown",
                 indicator);
-        free(scene_file_content);
     } else {
-        printf("%s\n", cJSON_PrintUnformatted(cjson));
-        gettimeofday(&end, NULL);
-        free(scene_file_content);
-        printf("cJSON time taken: %fms\n", timersub_ms(&end, &start));
+        char *out = cJSON_PrintUnformatted(cjson);
+        printf("%s\n", out);
         cJSON_Delete(cjson);
+        free(out);
     }
+    gettimeofday(&end, NULL);
+    printf("cJSON time taken: %fms\n", timersub_ms(&end, &start));
+
+    free(scene_file_content);
 
     return 0;
 }

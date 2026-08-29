@@ -336,23 +336,58 @@ static void json__lexer_get_token(Lexer *l) {
             break;
         case '"': {  // get string
             json__lexer_get_char(l);
-            const char *start = l->curr;
+            char *start = (char *)l->curr;
             size_t len = 0;
             l->kind = TOKEN_STRING;
             char c = json__lexer_get_char(l);
             while (true) {
-                // TODO: fix escaping
                 // TODO: fix \uXXXX
                 if (c == '\\') {
                     c = json__lexer_get_char(l);
+                    switch (c) {
+                        case '"': {
+                            start[len] = '"';
+                        } break;
+                        case '\\': {
+                            start[len] = '\\';
+                        } break;
+                        case '/': {
+                            start[len] = '/';
+                        } break;
+                        case 'b': {
+                            start[len] = '\b';
+                        } break;
+                        case 'f': {
+                            start[len] = '\f';
+                        } break;
+                        case 'n': {
+                            start[len] = '\n';
+                        } break;
+                        case 'r': {
+                            start[len] = '\r';
+                        } break;
+                        case 't': {
+                            start[len] = '\t';
+                        } break;
+                        default: {
+                            l->kind = TOKEN_UNKNOWN;
+                            json__set_lerror_raw(
+                                l, "invalid string: unknown escape sequence");
+                            return;
+                        }
+                    }
                     len++;
+                    c = json__lexer_get_char(l);
+                    continue;
                 } else if (c == '\n' || c == '\r') {
                     l->kind = TOKEN_UNKNOWN;
                     json__set_lerror_raw(
                         l, "invalid string: strings cannot contain newline");
                     return;
-                } else if (c == '"')
+                } else if (c == '"') {
                     break;
+                }  
+                start[len] = c;
                 c = json__lexer_get_char(l);
                 len++;
             }

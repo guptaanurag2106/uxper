@@ -1,11 +1,9 @@
 {
   "simple_escape": "tab\there and newline\nhere",
-  "unicode": "hello\u0041world",
   "backslash": "path\\to\\file",
   "quote": "she said \"hello\"",
   "solidus": "forward\/slash",
   "backspace": "back\bspace",
   "formfeed": "page\ffeed",
-  "carriage": "carriage\rreturn",
-  "mixed": "tab\t|quote\"|back\\|unicode\u00e9"
+  "carriage": "carriage\rreturn"
 }

@@ -1,5 +1,95 @@
 json_parse_file: OK
 json_number(scene_crc): -1036225051.000000
-json_string(scene_json): {\n  \"config\": {\n    \"width\": 2160,\n    \"height\": 2160,\n    \"samples_per_pixel\": 150,\n    \"max_depth\": 50\n  },\n  \"camera\": {\n    \"position\": [0, 0, 80],\n    \"look_at\": [0, 0, 0],\n    \"up\": [0, 1, 0],\n    \"fov\": 90,\n    \"aspect_ratio\": \"1/1\",\n    \"defocus_angle\": 0.2,\n    \"focus_dist\": 150.0\n  },\n\n  \"objects\": {\n    \"sphere\": [\n      { \"center\": [50, 0, -50], \"radius\": 20, \"material\": 4 }\n    ],\n\n    \"plane\": [\n    ],\n\n    \"triangle\": [\n    ],\n\n    \"quad\": [\n     {\n          \"corner\": [-120, -120, -40],\n          \"u\": [0, 240, 0],\n          \"v\": [0, 0, -160],\n          \"material\": 3\n        },\n        {\n          \"corner\": [120, -120, -40],\n          \"u\": [0, 0, -160],\n          \"v\": [0, 240, 0],\n          \"material\": 2\n        },\n        {\n          \"corner\": [-120, 120, -40],\n          \"u\": [240, 0, 0],\n          \"v\": [0, 0, -160],\n          \"material\": 1\n        },\n        {\n          \"corner\": [-120, -120, -40],\n          \"u\": [0, 0, -160],\n          \"v\": [240, 0, 0],\n          \"material\": 1\n        },\n        {\n          \"corner\": [-120, -120, -200],\n          \"u\": [0, 240, 0],\n          \"v\": [240, 0, 0],\n          \"material\": 1\n        },\n        {\n          \"corner\": [-40, 119, -100],\n          \"u\": [80, 0, 0],\n          \"v\": [0, 0, -40],\n          \"material\": 0\n        }\n    ],\n\n    \"boxes\": [\n        {\n            \"a\": [-30, -120, -140],\n            \"b\": [-90, 20, -200],\n            \"material\": 1\n        },\n        {\n            \"a\": [-40, -120, -120],\n            \"b\": [0, -20, -80],\n            \"material\": 1\n        }\n    ]\n  },\n\n  \"materials\": [\n    { \"type\": \"emissive\", \"emission\": [1, 1, 1] },\n    { \"type\": \"lambertian\", \"albedo\": [0.75, 0.75, 0.75] },\n    { \"type\": \"lambertian\", \"albedo\": [0.8, 0.2, 0.2] },\n    { \"type\": \"lambertian\", \"albedo\": [0.2, 0.8, 0.2] },\n    { \"type\": \"metal\", \"albedo\": [0.9, 0.9, 0.9], \"fuzz\": 0.05 }\n  ]\n}\n\n
-json_parse_string: FAIL
-:1:2: expected '}', got '\'
+json_string(scene_json): {
+  "config": {
+    "width": 2160,
+    "height": 2160,
+    "samples_per_pixel": 150,
+    "max_depth": 50
+  },
+  "camera": {
+    "position": [0, 0, 80],
+    "look_at": [0, 0, 0],
+    "up": [0, 1, 0],
+    "fov": 90,
+    "aspect_ratio": "1/1",
+    "defocus_angle": 0.2,
+    "focus_dist": 150.0
+  },
+
+  "objects": {
+    "sphere": [
+      { "center": [50, 0, -50], "radius": 20, "material": 4 }
+    ],
+
+    "plane": [
+    ],
+
+    "triangle": [
+    ],
+
+    "quad": [
+     {
+          "corner": [-120, -120, -40],
+          "u": [0, 240, 0],
+          "v": [0, 0, -160],
+          "material": 3
+        },
+        {
+          "corner": [120, -120, -40],
+          "u": [0, 0, -160],
+          "v": [0, 240, 0],
+          "material": 2
+        },
+        {
+          "corner": [-120, 120, -40],
+          "u": [240, 0, 0],
+          "v": [0, 0, -160],
+          "material": 1
+        },
+        {
+          "corner": [-120, -120, -40],
+          "u": [0, 0, -160],
+          "v": [240, 0, 0],
+          "material": 1
+        },
+        {
+          "corner": [-120, -120, -200],
+          "u": [0, 240, 0],
+          "v": [240, 0, 0],
+          "material": 1
+        },
+        {
+          "corner": [-40, 119, -100],
+          "u": [80, 0, 0],
+          "v": [0, 0, -40],
+          "material": 0
+        }
+    ],
+
+    "boxes": [
+        {
+            "a": [-30, -120, -140],
+            "b": [-90, 20, -200],
+            "material": 1
+        },
+        {
+            "a": [-40, -120, -120],
+            "b": [0, -20, -80],
+            "material": 1
+        }
+    ]
+  },
+
+  "materials": [
+    { "type": "emissive", "emission": [1, 1, 1] },
+    { "type": "lambertian", "albedo": [0.75, 0.75, 0.75] },
+    { "type": "lambertian", "albedo": [0.8, 0.2, 0.2] },
+    { "type": "lambertian", "albedo": [0.2, 0.8, 0.2] },
+    { "type": "metal", "albedo": [0.9, 0.9, 0.9], "fuzz": 0.05 }
+  ]
+}
+
+
+json_parse_string: OK
+{"config":{"width":2160,"height":2160,"samples_per_pixel":150,"max_depth":50},"camera":{"position":[0,0,80],"look_at":[0,0,0],"up":[0,1,0],"fov":90,"aspect_ratio":"1/1","defocus_angle":0.200000,"focus_dist":150.000000},"objects":{"sphere":[{"center":[50,0,-50],"radius":20,"material":4}],"plane":[],"triangle":[],"quad":[{"corner":[-120,-120,-40],"u":[0,240,0],"v":[0,0,-160],"material":3},{"corner":[120,-120,-40],"u":[0,0,-160],"v":[0,240,0],"material":2},{"corner":[-120,120,-40],"u":[240,0,0],"v":[0,0,-160],"material":1},{"corner":[-120,-120,-40],"u":[0,0,-160],"v":[240,0,0],"material":1},{"corner":[-120,-120,-200],"u":[0,240,0],"v":[240,0,0],"material":1},{"corner":[-40,119,-100],"u":[80,0,0],"v":[0,0,-40],"material":0}],"boxes":[{"a":[-30,-120,-140],"b":[-90,20,-200],"material":1},{"a":[-40,-120,-120],"b":[0,-20,-80],"material":1}]},"materials":[{"type":"emissive","emission":[1,1,1]},{"type":"lambertian","albedo":[0.750000,0.750000,0.750000]},{"type":"lambertian","albedo":[0.800000,0.200000,0.200000]},{"type":"lambertian","albedo":[0.200000,0.800000,0.200000]},{"type":"metal","albedo":[0.900000,0.900000,0.900000],"fuzz":0.050000}]}
