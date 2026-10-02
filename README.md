@@ -34,4 +34,5 @@
 - **Fuzzy Search**: Implementing fuzzy searching
 - **Timing Attack**: Trying strcmp based timing attack
 - **Line Graphs**: Making some 2D line graphs
-- **Asyncio**: Experimenting with python's asyncio
+- **Async in Python**: Experimenting with Python's generators, coroutines, async, threads, gil, asyncio, wsgi, asgi etc
+- **Snake**: Classic snake game in SDL
