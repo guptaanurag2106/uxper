@@ -548,7 +548,7 @@ class Game {
     void re_start() {
         if (state_ == State::Running) return;
         state_ = State::Running;
-        score_ = 9;
+        score_ = 0;
 
         choose_random_apple_pos();
         apple_present_ = true;
@@ -561,7 +561,7 @@ class Game {
         turn_to_dir_ = {0, 0};
 
         body_sizes_.resize(0);
-        body_sizes_.push_back({0, 9});
+        body_sizes_.push_back({0, 1});
     }
 
     void receive_dir(Vec2 dir) {
